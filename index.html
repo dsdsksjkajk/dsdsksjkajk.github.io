@@ -56,3 +56,129 @@
     }
   }
 </script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Interactive Dashboard</title>
+    <style>
+        /* CSS - The Design */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        header {
+            background: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 20px;
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .card {
+            background: #f4f4f4;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            color: #333;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn:hover { background: #0056b3; }
+
+        #todo-list { list-style: none; padding: 0; }
+        #todo-list li {
+            background: white;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .dark-mode { background: #1a1a1a; color: #f4f4f4; }
+        .dark-mode .card { background: #2d2d2d; color: white; }
+    </style>
+</head>
+<body id="main-body">
+
+    <header>
+        <h1>My Interactive Space</h1>
+        <button class="btn" onclick="toggleTheme()">Toggle Dark Mode</button>
+    </header>
+
+    <div class="container">
+        <aside class="card">
+            <h3>Profile</h3>
+            <img src="https://github.com/identicons/guest.png" width="100">
+            <p>Welcome, <span id="display-name">Guest</span>!</p>
+            <button class="btn" onclick="changeName()">Change Name</button>
+        </aside>
+
+        <main class="card">
+            <h2>Daily Tasks</h2>
+            <input type="text" id="todo-input" placeholder="Enter a task...">
+            <button class="btn" onclick="addTodo()">Add Task</button>
+            <ul id="todo-list">
+                </ul>
+        </main>
+    </div>
+
+    <script>
+        /* JavaScript - The Logic */
+
+        // 1. Change Name Function
+        function changeName() {
+            const newName = prompt("What is your name?");
+            if (newName) {
+                document.getElementById('display-name').innerText = newName;
+            }
+        }
+
+        // 2. Add To-Do Function
+        function addTodo() {
+            const input = document.getElementById('todo-input');
+            const list = document.getElementById('todo-list');
+            
+            if (input.value.trim() !== "") {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    ${input.value} 
+                    <button style="background:red; color:white; border:none; border-radius:3px; cursor:pointer;" 
+                            onclick="this.parentElement.remove()">X</button>
+                `;
+                list.appendChild(li);
+                input.value = "";
+            }
+        }
+
+        // 3. Theme Toggle Function
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+        }
+    </script>
+
+</body>
+</html>
