@@ -18,3 +18,24 @@
     }
   };
 </script>
+<div id="cursor-glow"></div>
+
+<style>
+  #cursor-glow {
+    position: fixed;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(0,150,255,0.3) 0%, rgba(0,0,0,0) 70%);
+    border-radius: 50%;
+    pointer-events: none; /* Let clicks pass through */
+    transform: translate(-50%, -50%);
+  }
+</style>
+
+<script>
+  const glow = document.getElementById('cursor-glow');
+  document.onmousemove = function(e) {
+    glow.style.left = e.pageX + 'px';
+    glow.style.top = e.pageY + 'px';
+  }
+</script>
