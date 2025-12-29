@@ -39,3 +39,20 @@
     glow.style.top = e.pageY + 'px';
   }
 </script>
+<input type="text" id="user-input" placeholder="Type a message...">
+<button onclick="postMessage()">Post to Page</button>
+<ul id="message-list"></ul>
+
+<script>
+  function postMessage() {
+    const input = document.getElementById('user-input');
+    const list = document.getElementById('message-list');
+    
+    if (input.value !== "") {
+      const newItem = document.createElement('li');
+      newItem.textContent = input.value;
+      list.appendChild(newItem);
+      input.value = ""; // Clear the box
+    }
+  }
+</script>
