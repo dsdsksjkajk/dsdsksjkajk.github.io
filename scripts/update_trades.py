@@ -182,6 +182,11 @@ def main():
     if len(trades) < MIN_ROWS:
         print(f"FAILED: only {len(trades)} rows parsed (floor is {MIN_ROWS}) "
               f"— the page layout may have changed; not touching trades.json", file=sys.stderr)
+        print("DEBUG: raw HTML of the extracted table (first 2000 chars):", file=sys.stderr)
+        print(table_html[:2000], file=sys.stderr)
+        print("DEBUG: first 3 parsed rows (cell lists) found by the HTML parser:", file=sys.stderr)
+        for r in extractor.rows[:3]:
+            print(r, file=sys.stderr)
         return 1
 
     existing = load_existing(TRADES_JSON)
