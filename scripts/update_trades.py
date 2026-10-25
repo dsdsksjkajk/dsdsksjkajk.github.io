@@ -63,21 +63,30 @@ class TableRowExtractor(html.parser.HTMLParser):
 
 
 def extract_recent_trades_table(page_html):
-    """Find the <table> that follows the 'Recent trades' heading text and
-    return its raw HTML slice. Anchoring on the heading (not table position)
-    survives the page gaining/losing other tables."""
-    marker = re.search(r"recent\s+trades", page_html, re.IGNORECASE)
-    if not marker:
-        raise ValueError("couldn't find a 'Recent trades' heading on the page")
-    rest = page_html[marker.end():]
-    table_start = rest.lower().find("<table")
-    if table_start < 0:
-        raise ValueError("no <table> found after the 'Recent trades' heading")
-    rest = rest[table_start:]
-    table_end = rest.lower().find("</table>")
-    if table_end < 0:
-        raise ValueError("'Recent trades' table was never closed")
-    return rest[: table_end + len("</table>")]
+    """Find the <table> whose header row has a 'When' column — that's what
+    makes the Recent trades table distinct from Sell orders / Buy orders
+    (which only have Item/Amount/Price). Anchoring on a column name specific
+    to this table, rather than nearby heading text, avoids grabbing the
+    wrong table if the page has several and the heading text appears
+    earlier than the table itself (e.g. in a nav link)."""
+    lower = page_html.lower()
+    pos = 0
+    while True:
+        start = lower.find("<table", pos)
+        if start < 0:
+            break
+        end = lower.find("</table>", start)
+        if end < 0:
+            break
+        end += len("</table>")
+        chunk = page_html[start:end]
+        # Only look inside the header (first ~2000 chars is plenty) for the
+        # "When" column, so we don't accidentally match it in a data cell.
+        head = chunk[:2000]
+        if re.search(r">\s*When\s*<", head, re.IGNORECASE):
+            return chunk
+        pos = end
+    raise ValueError("couldn't find a table with a 'When' column (Recent trades)")
 
 
 def dedupe_name(name):
