@@ -243,9 +243,9 @@ footer{padding:22px 0 40px;color:var(--muted);font-size:13px;max-width:80ch}
     </div>
 
     <details class="import" id="import">
-      <summary>Owner tools: publish new trade data</summary>
+      <summary>Owner tools: backfill trade data</summary>
       <div class="import-body">
-        <p>This site reads its data from <code>trades.json</code> next to this page, so everyone who opens the link sees the same history. There's no server — to update it, paste new trades below (open <b>Recent trades</b> on market.flatmmo.com and copy the whole table, or paste lines from Discord), then download the updated file and upload it to replace <code>trades.json</code> in your hosting. Anyone can open this panel, but it only ever produces a file for you to download — nothing is sent anywhere, so it's safe to leave visible.</p>
+        <p>Recent trades are pulled in automatically on a schedule, so you shouldn't normally need this. It's here for backfilling history the automatic scraper can't reach — older trades from Discord, say. Paste trades below, then download the updated file and upload it to replace <code>trades.json</code> in your hosting — the automatic updates only ever add newly scraped trades on top of whatever's already in the file, so your backfilled rows stay put. Anyone can open this panel, but it only ever produces a file for you to download — nothing is sent anywhere, so it's safe to leave visible.</p>
         <textarea id="paste" placeholder="Paste trades here" spellcheck="false"></textarea>
         <div class="inline">
           <label for="defDate">Date for lines without one</label>
