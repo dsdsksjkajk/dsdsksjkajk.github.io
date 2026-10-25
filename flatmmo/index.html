@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FlatMMO price tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EDE8; --panel:#F5F8F3; --panel2:#DFE7E0; --line:#C4D0C8;
+  --text:#14313A; --muted:#54706F; --gold:#8A6600; --coin:#C99A12;
+  --up:#2C7343; --down:#B0432B;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D2025; --panel:#132C33; --panel2:#1A3A44; --line:#2B4B54;
+    --text:#EAE3CF; --muted:#9AB0AD; --gold:#F0C24B; --coin:#F0C24B;
+    --up:#8CC791; --down:#EC8A6E;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D2025; --panel:#132C33; --panel2:#1A3A44; --line:#2B4B54;
+  --text:#EAE3CF; --muted:#9AB0AD; --gold:#F0C24B; --coin:#F0C24B;
+  --up:#8CC791; --down:#EC8A6E;
+  color-scheme: dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:400 15px/1.5 'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+header.top{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;padding:22px 0 16px}
+h1{margin:0;font:700 clamp(24px,4.4vw,32px)/1.1 'Pixelify Sans',ui-monospace,Menlo,monospace;letter-spacing:.01em}
+.sub{margin:6px 0 0;color:var(--muted);font-size:14px}
+.updated{margin:4px 0 0;color:var(--muted);font-size:13px}
+.updated code{background:var(--panel2);border-radius:4px;padding:1px 5px;font-size:12px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--panel2)}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:var(--bg)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.layout{display:grid;grid-template-columns:minmax(250px,310px) minmax(0,1fr);gap:18px;align-items:start}
+
+/* item rail */
+.rail{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.rail-tools{display:grid;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+.rail-tools input,.rail-tools select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 10px}
+.list{max-height:640px;overflow:auto;margin:0;padding:0;list-style:none}
+.row{display:grid;grid-template-columns:1fr auto;grid-template-areas:"name price" "spark meta";gap:2px 10px;
+  width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);
+  padding:10px 12px 10px 14px;cursor:pointer;border-left:3px solid transparent}
+.row:hover{background:var(--panel2)}
+.row[aria-current="true"]{background:var(--panel2);border-left-color:var(--coin)}
+.r-name{grid-area:name;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r-price{grid-area:price;font-family:'Pixelify Sans',ui-monospace,monospace;font-weight:500;color:var(--gold)}
+.r-spark{grid-area:spark;display:flex;align-items:center;color:var(--muted)}
+.r-meta{grid-area:meta;font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--muted)}
+.empty{padding:18px 14px;color:var(--muted);font-size:14px}
+
+/* stage */
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.stage>section{padding:16px 18px;border-bottom:1px solid var(--line)}
+.stage>section:last-child{border-bottom:0}
+.head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.head h2{margin:0;font:700 clamp(22px,4vw,28px)/1.15 'Pixelify Sans',ui-monospace,monospace;text-transform:none;word-break:break-word}
+.raw{color:var(--muted);font-size:13px;margin-top:2px}
+.latest{text-align:right}
+.latest .big{font:700 clamp(28px,5vw,40px)/1 'Pixelify Sans',ui-monospace,monospace;color:var(--gold)}
+.latest .note{font-size:13px;color:var(--muted);margin-top:4px}
+.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--bg)}
+.seg button{border:0;background:transparent;color:var(--muted);font-size:13px;padding:5px 13px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.chartbox{position:relative}
+#chart{position:relative;min-height:300px}
+#chart svg{display:block;width:100%;touch-action:pan-y}
+#chart text{fill:var(--muted);font-size:11px;font-family:inherit}
+.grid{stroke:var(--line);stroke-width:1}
+.axis{stroke:var(--muted);stroke-width:1;opacity:.5}
+.whisker{stroke:var(--coin);stroke-width:2;opacity:.4;stroke-linecap:round}
+.pline{fill:none;stroke:var(--coin);stroke-width:2}
+.dot{fill:var(--coin);stroke:var(--panel);stroke-width:2}
+.vol{fill:var(--muted);opacity:.45}
+.guide{stroke:var(--text);stroke-width:1;opacity:.35;stroke-dasharray:3 3}
+.ring{fill:none;stroke:var(--text);stroke-width:2}
+.tip{position:absolute;z-index:3;pointer-events:none;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  padding:8px 10px;font-size:13px;line-height:1.45;box-shadow:0 4px 16px rgba(0,0,0,.18);white-space:nowrap}
+.tip b{font-weight:600}
+.tip .d{color:var(--muted)}
+.caption{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.nodata{display:grid;place-items:center;min-height:240px;color:var(--muted);text-align:center;padding:20px}
+
+dl.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;margin:0}
+dl.stats>div{padding:2px 14px;border-left:1px solid var(--line)}
+dl.stats>div:first-child{border-left:0;padding-left:0}
+dl.stats dt{font-size:13px;color:var(--muted)}
+dl.stats dd{margin:2px 0 0;font-weight:600;font-size:17px}
+.warn{margin:12px 0 0;font-size:13px;color:var(--muted)}
+
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+th{font-weight:500;color:var(--muted);font-size:13px}
+tbody tr:last-child td{border-bottom:0}
+.more{margin-top:10px}
+.sechead{margin:0 0 10px;font-size:16px;font-weight:600}
+
+/* view tabs + bargain finder */
+.tabs{margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px}
+.card h2{margin:0 0 4px;font:700 clamp(20px,3.6vw,26px)/1.2 'Pixelify Sans',ui-monospace,monospace}
+.card>p.raw{margin:0 0 14px;max-width:70ch}
+tr.hl-good{background:rgba(44,115,67,.12)}
+tr.hl-great{background:rgba(44,115,67,.22)}
+tr.hl-bad{background:rgba(176,67,43,.10)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) tr.hl-good{background:rgba(140,199,145,.14)}
+  :root:not([data-theme="light"]) tr.hl-great{background:rgba(140,199,145,.26)}
+  :root:not([data-theme="light"]) tr.hl-bad{background:rgba(236,138,110,.14)}
+}
+:root[data-theme="dark"] tr.hl-good{background:rgba(140,199,145,.14)}
+:root[data-theme="dark"] tr.hl-great{background:rgba(140,199,145,.26)}
+:root[data-theme="dark"] tr.hl-bad{background:rgba(236,138,110,.14)}
+.badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.badge.lowconf{opacity:.65;border-style:dashed}
+.nohist{font-size:13px;color:var(--muted);margin-top:14px}
+.nohist code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
+
+/* importer */
+details.import{margin:22px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+details.import>summary{cursor:pointer;padding:14px 18px;font-weight:600;list-style:none}
+details.import>summary::-webkit-details-marker{display:none}
+details.import>summary::before{content:"+";display:inline-block;width:1.2em;color:var(--gold);font-weight:700}
+details.import[open]>summary::before{content:"\2212"}
+.import-body{padding:0 18px 18px;display:grid;gap:12px}
+.import-body p{margin:0;color:var(--muted);font-size:14px;max-width:72ch}
+.import-body code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:13px}
+textarea{width:100%;min-height:130px;resize:vertical;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.inline{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.inline label{font-size:14px;color:var(--muted)}
+.inline input[type=date]{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+#preview{font-size:14px}
+#preview ul{margin:6px 0 0;padding-left:18px;color:var(--muted)}
+footer{padding:22px 0 40px;color:var(--muted);font-size:13px;max-width:80ch}
+
+@media (max-width:860px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .list{max-height:250px}
+  .latest{text-align:left}
+  dl.stats>div{border-left:0;padding-left:0;padding-bottom:8px}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>FlatMMO price tracker</h1>
+      <p class="sub" id="sub">Loading trades…</p>
+      <p class="updated" id="updated"></p>
+    </div>
+    <div class="inline">
+      <button class="btn" id="refreshBtn" type="button" title="Check for a newer published snapshot">Refresh data</button>
+      <button class="btn" id="openImport" type="button">Owner tools</button>
+    </div>
+  </header>
+
+  <div class="seg tabs" id="viewSeg" role="group" aria-label="Tool">
+    <button type="button" data-view="tracker" aria-pressed="true">Price tracker</button>
+    <button type="button" data-view="bargain" aria-pressed="false">Bargain finder</button>
+  </div>
+
+  <div id="trackerView">
+    <div class="layout">
+      <aside class="rail" aria-label="Items">
+        <div class="rail-tools">
+          <input id="q" type="search" placeholder="Search items" aria-label="Search items" autocomplete="off">
+          <select id="sort" aria-label="Sort items">
+            <option value="trades">Most sales</option>
+            <option value="high">Highest price</option>
+            <option value="low">Lowest price</option>
+            <option value="move">Biggest price move</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <ul class="list" id="list"></ul>
+      </aside>
+
+      <main class="stage" id="stage" aria-live="polite">
+        <section class="head">
+          <div>
+            <h2 id="itemName">Pick an item</h2>
+            <div class="raw" id="itemRaw"></div>
+          </div>
+          <div class="latest">
+            <div class="big" id="latestPrice">-</div>
+            <div class="note" id="latestNote"></div>
+          </div>
+        </section>
+
+        <section>
+          <div class="controls">
+            <div class="seg" id="rangeSeg" role="group" aria-label="Time range"></div>
+            <div class="seg" role="group" aria-label="Price scale">
+              <button type="button" id="scLin" aria-pressed="true">Linear</button>
+              <button type="button" id="scLog" aria-pressed="false" title="Log scale keeps big and small prices readable when a price swings a lot">Log</button>
+            </div>
+          </div>
+          <div class="chartbox"><div id="chart"></div><div class="tip" id="tip" hidden></div></div>
+          <p class="caption">Each dot is the day's average price, weighted by units sold. The vertical line runs from the day's lowest to highest sale. Bars show units sold.</p>
+        </section>
+
+        <section>
+          <dl class="stats" id="stats"></dl>
+          <p class="warn" id="warn" hidden></p>
+        </section>
+
+        <section>
+          <h3 class="sechead">Sales in this window</h3>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Date</th><th>Units</th><th>Price each</th><th>Total</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table></div>
+          <button class="btn more" id="moreBtn" type="button" hidden>Show all</button>
+        </section>
+      </main>
+    </div>
+
+    <details class="import" id="import">
+      <summary>Owner tools: publish new trade data</summary>
+      <div class="import-body">
+        <p>This site reads its data from <code>trades.json</code> next to this page, so everyone who opens the link sees the same history. There's no server — to update it, paste new trades below (open <b>Recent trades</b> on market.flatmmo.com and copy the whole table, or paste lines from Discord), then download the updated file and upload it to replace <code>trades.json</code> in your hosting. Anyone can open this panel, but it only ever produces a file for you to download — nothing is sent anywhere, so it's safe to leave visible.</p>
+        <textarea id="paste" placeholder="Paste trades here" spellcheck="false"></textarea>
+        <div class="inline">
+          <label for="defDate">Date for lines without one</label>
+          <input type="date" id="defDate">
+        </div>
+        <div id="preview" role="status"></div>
+        <div class="inline">
+          <button class="btn primary" id="addBtn" type="button" disabled>Download updated trades.json</button>
+          <button class="btn" id="csvBtn" type="button">Download all trades as CSV</button>
+        </div>
+        <p class="raw" id="publishNote" style="margin-top:4px"></p>
+      </div>
+    </details>
+  </div>
+
+  <div id="bargainView" hidden>
+    <div class="card">
+      <h2>Bargain finder</h2>
+      <p class="raw">Paste the market's <b>current listings</b> below and this checks each one against its usual trade price, so items listed unusually cheap stand out. Paste in the same style as the trade importer — item name, then quantity and price. Nothing typed here is saved: it's a one-off calculation that clears when you leave or reload the page.</p>
+      <textarea id="listingsPaste" placeholder="Paste current listings here" spellcheck="false"></textarea>
+      <div class="inline" style="margin-top:10px">
+        <button class="btn primary" id="findBargainsBtn" type="button">Find bargains</button>
+        <button class="btn" id="clearListingsBtn" type="button" hidden>Clear</button>
+      </div>
+      <div id="bargainPreview" role="status" style="margin-top:10px;font-size:14px"></div>
+      <div id="bargainResults" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <footer>
+    Fan-made and not affiliated with FlatMMO. Prices come from the public Recent trades list on market.flatmmo.com, which gives dates but not times and only covers a recent window, so the site owner collects it by hand and republishes it periodically — see "Data last published" above for how current it is. The bargain finder never sends or saves anything you paste into it; it's recalculated locally in your browser and gone when you leave the page.
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- seed data: recent trades from market.flatmmo.com, snapshot 2026-09-20 ----------
+   format: a date line, then "item units price_each" lines. Used only if trades.json
+   cannot be reached (e.g. viewed outside its hosted site), so the page still works. */
+var SEED_TEXT = [
+'2026-09-20',
+'large_enchantment_potion 15 40000',
+'unpowered_orb 60000 92',
+'large_enchantment_potion 35 40000',
+'unpowered_orb 45000 92',
+'large_enchantment_potion 72 40000',
+'unpowered_orb 43094 85',
+'ice_ogre_club 1 1000000',
+'unpowered_orb 42286 85',
+'unpowered_orb 13286 85',
+'unpowered_orb 32459 85',
+'premium_beer 30 300',
+'unpowered_orb 25745 85',
+'large_enchantment_potion 22 40000',
+'unpowered_orb 15496 85',
+'unpowered_orb 10000 85',
+'premium_beer 495 300',
+'2026-09-19',
+'cooked_sardine 10 12',
+'unpowered_orb 48200 84',
+'unpowered_orb 24872 84',
+'blue_mage_gloves 1 500',
+'iron 1127 15',
+'copper 3355 5',
+'desert_mage_boots 1 1111',
+'gold_leaf_seeds 10 40000',
+'gold_leaf_seeds 104 50000',
+'electric_pages 1 250000',
+'large_enchantment_potion 5 40000',
+'gold_leaf_seeds 10 50000',
+'seaweed 316 1500',
+'iron 222 15',
+'gold_leaf_seeds 1 50000',
+'copper 3262 5',
+'banana 11 300',
+'rogue_warrior_helmet 1 225000',
+'raw_crab_meat 642 20',
+'noctyrix_mask 1 30000',
+'noctyrix_gloves 1 30000',
+'noctyrix_boots 6 20000',
+'feathers 515 15',
+'2026-09-18',
+'seaweed 809 1500',
+'gold_leaf_seeds 10 40000',
+'crystal_leaf_seeds 4 100000',
+'large_enchantment_potion 2 40000',
+'coal 10000 100',
+'iron 2210 15',
+'omboko_axe 1 17000',
+'iron 2028 15',
+'copper 4734 5',
+'maple_logs 100 52',
+'maple_logs 52 52',
+'iron 3000 15',
+'willow_logs 300 50',
+'willow_logs 227 50',
+'green_leaf_seeds 3 5000',
+'raw_shark 291 1000',
+'blue_mushroom 855 100',
+'woodchips 78597 15',
+'feathers 50000 15',
+'iron 18000 15',
+'copper 9000 5',
+'beer_mug 107 100',
+'iron 2000 15',
+'coal 3000 200',
+'iron 36 10',
+'gold_leaf 1042 4000',
+'warroot_seeds 1 800000',
+'gold_leaf 742 4000',
+'iron 850 15',
+'copper 2039 5',
+'dragon_scimitar 1 3500000',
+'unpowered_orb 13935 80',
+'unpowered_orb 1194 80',
+'unpowered_orb 40000 81',
+'hunters_feather 1 300000',
+'emerald_necklace 1 90000',
+'accuracy_ring 1 1250000',
+'magic_hunting_mask 1 700000',
+'premium_beer 100 300',
+'beer_mug 10 100',
+'raw_tuna 1000 119',
+'raw_tuna 10000 119',
+'seaweed 172 1500',
+'copper 57605 5',
+'silver_bar 40000 1',
+'gold_leaf_seeds 1 40000',
+'2026-09-17',
+'hunting_mask 1 600000',
+'gold_leaf 642 4000',
+'gold_leaf 502 4000',
+'willow_logs 831 50',
+'accuracy_ring 1 700000',
+'stardust 71158 10',
+'defence_ring 1 1900000',
+'ancient_spear 1 250000',
+'accuracy_ring 1 850000',
+'bones 58533 85',
+'huge_combat_potion 4 350000',
+'spirit_mushroom_seeds 17 3000',
+'seaweed 113 1500',
+'iron 977 15',
+'copper 2243 5',
+'damage_orb_3 1100 115',
+'damage_orb_3 800 115',
+'damage_orb_3 600 115',
+'damage_orb_3 400 115',
+'damage_orb_3 300 115',
+'damage_orb_3 200 115',
+'willow_logs 2097 50',
+'willow_logs 1963 50',
+'blue_mushroom 17 100',
+'red_mushroom 49 100',
+'beer_mug 108 100',
+'banana 20 100',
+'banana 22 100',
+'red_mushroom 360 100',
+'beer_mug 53 100',
+'banana 20 300',
+'green_mushroom 296 100',
+'beer_mug 77 100',
+'red_mushroom 19000 100',
+'green_mushroom 16000 100',
+'blue_mushroom 9000 100',
+'beer_mug 675 100',
+'barley_seeds 24 165',
+'willow_logs 2999 50',
+'banana 30 300',
+'green_mushroom 1020 100',
+'beer_mug 115 100',
+'2026-09-16',
+'green_mushroom 510 100',
+'banana 10 300',
+'beer_mug 38 100',
+'lime_leaf 7800 666',
+'banana 10 300',
+'green_mushroom 595 100',
+'beer_mug 38 100',
+'dragon_scimitar 1 2900000',
+'green_mushroom 84 100',
+'red_mushroom 95 100',
+'banana 10 300',
+'beer_mug 38 100',
+'string 25 3',
+'logs 3300 5',
+'copper 50000 5',
+'warroot_seeds 10 800000',
+'green_leaf_seeds 2 10',
+'logs 1289 1',
+'unpowered_orb 26000 80',
+'bond 5 5000000',
+'shiny_boss_glass_orb 4 450000',
+'shiny_boss_glass_orb 19 450000',
+'iron 1813 15',
+'copper 1926 5',
+'gold_axe 1 135',
+'gold_pickaxe 1 155',
+'woodchips 71597 15',
+'iron 340 15',
+'cave_bait 220 500',
+'willow_logs 4462 50',
+'willow_logs 4346 50',
+'willow_logs 1243 50',
+'raw_shark 244 1000',
+'willow_logs 10000 50',
+'ruby_necklace 2 180000',
+'beer_mug 75 100',
+'green_mushroom 314 100',
+'blue_mushroom 420 100',
+'banana 20 300',
+'beer_mug 266 100',
+'banana 10 300',
+'blue_mushroom 420 100',
+'barley_seeds 76 160',
+'blue_mushroom 1092 100',
+'banana 62 300',
+'raw_shark 187 1000',
+'promethium_scimitar 2 69999',
+'barley_seeds 4871 500',
+'blue_mushroom 420 100',
+'barley_seeds 17 500',
+'beer_mug 31 100',
+'banana 38 300',
+'blue_mushroom 668 100',
+'barley_seeds 34 500',
+'beer_mug 94 100',
+'2026-09-15',
+'beer_mug 20 100',
+'barley_seeds 13 500',
+'beer_mug 39 100',
+'banana 10 300',
+'barley_seeds 15 160',
+'barley_seeds 50 500',
+'stardust_seeds 8 12000',
+'green_mushroom 1000 100',
+'raw_shark 110 1000',
+'crystal_leaf_seeds 1 240000',
+'dragon_pickaxe 1 10000000',
+'raw_shark 58 1000',
+'willow_logs 1682 50',
+'willow_logs 1501 50',
+'willow_logs 3758 50',
+'willow_logs 4042 50',
+'willow_logs 3618 50',
+'willow_logs 8529 50',
+'iron 8254 10',
+'barley_seeds 500 160',
+'ogre_club 1 555555',
+'green_leaf_seeds 1 5000',
+'rogue_archer_hood 1 250000',
+'rogue_archer_legs 1 250000',
+'rogue_archer_body 1 250000',
+'gold_leaf 14 3500',
+'rogue_archer_body 1 350000',
+'unpowered_orb 2000 81',
+'ruby_necklace 1 180000',
+'sapphire_necklace 1 45000',
+'emerald_necklace 1 90000',
+'feathers 30000 10',
+'iron 1 10',
+'willow_logs 416 50',
+'willow_logs 2016 50',
+'archery_ring 1 1300000',
+'melee_ring 1 1300000',
+'accuracy_ring 1 750000',
+'willow_logs 24 50',
+'willow_logs 728 50',
+'blue_mushroom 249 100',
+'barley_seeds 15 160',
+'beer_mug 37 100',
+'banana 10 300',
+'willow_logs 148 50',
+'blue_mushroom 332 100',
+'barley_seeds 15 160',
+'banana 10 300',
+'beer_mug 37 100',
+'willow_logs 180 50',
+'gold_leaf 7 3500',
+'barley_seeds 15 160',
+'banana 10 300',
+'beer_mug 49 100',
+'blue_mushroom 498 100',
+'banana 20 300',
+'barley_seeds 30 160',
+'beer_mug 74 100',
+'barley_seeds 15 160',
+'beer_mug 37 100',
+'banana 10 300',
+'barley_seeds 30 160',
+'beer_mug 24 100',
+'blue_mushroom 249 100',
+'beer_mug 27 100',
+'banana 20 300',
+'banana 17 300',
+'barley_seeds 15 160',
+'beer_mug 31 100',
+'beer_mug 23 100',
+'barley_seeds 15 160',
+'premium_beer 15 300',
+'blue_mushroom 268 100',
+'banana 25 300',
+'beer_mug 42 100',
+'barley_seeds 31 160',
+'barley_seeds 10 160',
+'banana 12 300',
+'beer_mug 29 100',
+'blue_mushroom 510 100',
+'beer_mug 10 100',
+'banana 50 300',
+'barley_seeds 5 50',
+'barley_seeds 31 50',
+'banana 106 300',
+'beer_mug 57 100',
+'blue_mushroom 346 100',
+'banana 11 300',
+'shiny_boss_glass_orb 12 450000',
+'beer_mug 27 100',
+'maple_logs 78000 52',
+'silver_bar 60000 1',
+'2026-09-14',
+'beer_mug 29 100',
+'banana 9 300',
+'banana 31 300',
+'blue_mushroom 249 100',
+'beer_mug 56 100',
+'beer_mug 21 100',
+'banana 3 300',
+'blue_mushroom 412 100',
+'beer_mug 38 100',
+'banana 6 300',
+'beer_mug 22 100',
+'banana 80 300',
+'barley_seeds 10 50',
+'gold_arrow_heads 500 1',
+'banana 10 300',
+'beer_mug 20 100',
+'barley_seeds 5 160',
+'logs 500 1',
+'logs 200 1',
+'banana 10 300',
+'iron 1385 1',
+'banana 2 300',
+'beer_mug 9 100',
+'beer_mug 9 24',
+'ogre_club 1 300000',
+'beer_mug 2 24',
+'beer_mug 3 28',
+'beer_mug 2 20',
+'beer_mug 2 20',
+'granite_boots 1 450000',
+'beer_mug 3000 100',
+'shiny_glass_orb 4 225000',
+'woodchips 28403 15',
+'banana 10 300',
+'premium_beer 5 300',
+'beer_mug 35 100',
+'premium_beer 20 300',
+'banana 10 300',
+'beer_mug 24 100',
+'banana 10 300',
+'blue_mushroom 256 100',
+'blue_mushroom 492 100',
+'banana 10 300',
+'beer_mug 12 100',
+'beer_mug 39 100',
+'blue_mushroom 246 100',
+'banana 10 300',
+'banana 10 300',
+'beer_mug 39 100',
+'blue_mushroom 326 100',
+'blue_mushroom 243 100',
+'banana 22 300',
+'beer_mug 50 100',
+'premium_beer 47 300',
+'banana 10 300',
+'beer_mug 37 100',
+'blue_mushroom 243 100'
+].join('\n');
+
+var DATA_URL = 'trades.json';
+var REFRESH_MS = 120000; /* re-check the hosted data every 2 minutes, in case the owner just published an update */
+var DEFAULT_ITEM = 'unpowered_orb';
+
+/* ---------- helpers ---------- */
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function dayNum(s){ var p = s.split('-').map(Number); return Date.UTC(p[0], p[1]-1, p[2]) / 864e5; }
+function dayStr(d){ return new Date(d*864e5).toISOString().slice(0,10); }
+function fmtDay(d, withYear, withWeekday){
+  var o = {day:'numeric', month:'short', timeZone:'UTC'};
+  if (withYear) o.year = 'numeric';
+  if (withWeekday) o.weekday = 'short';
+  return new Date(d*864e5).toLocaleDateString('en-GB', o);
+}
+function fmtInt(n){ return Math.round(n).toLocaleString('en-GB'); }
+function fmtPrice(n){ return n.toLocaleString('en-GB', {maximumFractionDigits: n < 100 ? 1 : 0}); }
+function fmtCompact(n){
+  var a = Math.abs(n);
+  function f(v, s){ var t = v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0); if (t.indexOf('.') >= 0) t = t.replace(/\.?0+$/, ''); return t + s; }
+  if (a >= 1e9) return f(n/1e9, 'B');
+  if (a >= 1e6) return f(n/1e6, 'M');
+  if (a >= 1e3) return f(n/1e3, 'k');
+  return String(Math.round(n*10)/10);
+}
+function pretty(item){ return item.replace(/_/g, ' '); }
+function todayISO(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function pct(x){ return (x > 0 ? '+' : '') + (Math.abs(x) < 0.1 ? x.toFixed(1) : x.toFixed(Math.abs(x) < 10 ? 1 : 0)) + '%'; }
+
+/* ---------- data ---------- */
+var trades = [], byItem = new Map(), gMin = 0, gMax = 0, dataUpdatedAt = null, dataSource = 'none';
+var state = { item: null, range: 'all', log: false, sort: 'trades', q: '', showAll: false };
+
+function parseSeed(text){
+  var date = null, out = [];
+  text.split('\n').forEach(function(raw){
+    var line = raw.trim(); if (!line) return;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(line)) { date = line; return; }
+    var p = line.split(/\s+/);
+    out.push({ item: p[0], date: date, qty: +p[1], price: +p[2] });
+  });
+  return out;
+}
+function tuplesToTrades(tuples){
+  return tuples.map(function(a){ return { item: a[0], date: a[1], qty: a[2], price: a[3] }; });
+}
+/* load the shared data the site owner publishes (trades.json next to this page). Falls back to
+   the small embedded snapshot above if it can't be reached, so the page still works somewhere. */
+function loadData(){
+  return fetch(DATA_URL + '?v=' + Date.now(), { cache: 'no-store' }).then(function(res){
+    if (!res.ok) throw new Error('http ' + res.status);
+    return res.json();
+  }).then(function(data){
+    if (!data || !Array.isArray(data.trades)) throw new Error('bad shape');
+    setData(tuplesToTrades(data.trades), data.updatedAt || null, 'live');
+    return true;
+  }).catch(function(){
+    if (dataSource === 'none') setData(parseSeed(SEED_TEXT), null, 'fallback');
+    return false;
+  });
+}
+function setData(list, updatedAt, source){
+  trades = list; dataUpdatedAt = updatedAt; dataSource = source;
+  rebuild();
+}
+function rebuild(){
+  byItem = new Map();
+  gMin = Infinity; gMax = -Infinity;
+  trades.forEach(function(t){
+    t.d = dayNum(t.date);
+    if (t.d < gMin) gMin = t.d;
+    if (t.d > gMax) gMax = t.d;
+    var a = byItem.get(t.item);
+    if (!a) { a = []; byItem.set(t.item, a); }
+    a.push(t);
+  });
+}
+function keyOf(t){ return t.item + '|' + t.date + '|' + t.qty + '|' + t.price; }
+function countMap(arr){ var m = new Map(); arr.forEach(function(t){ var k = keyOf(t); m.set(k, (m.get(k)||0) + 1); }); return m; }
+function newOnly(incoming){
+  var cur = countMap(trades), inc = countMap(incoming), add = [];
+  inc.forEach(function(c, k){
+    var have = cur.get(k) || 0;
+    if (c > have) {
+      var p = k.split('|');
+      for (var i = 0; i < c - have; i++) add.push({ item: p[0], date: p[1], qty: +p[2], price: +p[3] });
+    }
+  });
+  return add;
+}
+
+function windowDays(){
+  var minD = gMin;
+  if (state.range !== 'all') minD = Math.max(gMin, gMax - (+state.range - 1));
+  return { minD: minD, maxD: gMax };
+}
+function rangeOptions(){
+  var span = gMax - gMin + 1;
+  return [7, 30, 90].filter(function(n){ return n < span; });
+}
+function daily(list, minD, maxD){
+  var m = new Map();
+  list.forEach(function(t){
+    if (t.d < minD || t.d > maxD) return;
+    var a = m.get(t.d);
+    if (!a) { a = { d: t.d, qty: 0, val: 0, lo: Infinity, hi: -Infinity, n: 0 }; m.set(t.d, a); }
+    a.qty += t.qty; a.val += t.qty * t.price; a.n++;
+    if (t.price < a.lo) a.lo = t.price;
+    if (t.price > a.hi) a.hi = t.price;
+  });
+  return Array.from(m.values()).sort(function(a,b){ return a.d - b.d; }).map(function(a){ a.vwap = a.val / a.qty; return a; });
+}
+function statsFor(item, w){
+  var days = daily(byItem.get(item) || [], w.minD, w.maxD);
+  if (!days.length) return null;
+  var last = days[days.length-1], first = days[0], lo = Infinity, hi = -Infinity, qty = 0, n = 0;
+  days.forEach(function(d){ lo = Math.min(lo, d.lo); hi = Math.max(hi, d.hi); qty += d.qty; n += d.n; });
+  return { days: days, last: last, first: first, lo: lo, hi: hi, qty: qty, n: n,
+           change: days.length > 1 ? (last.vwap - first.vwap) / first.vwap * 100 : null };
+}
+
+/* ---------- header ---------- */
+function relTime(iso){
+  if (!iso) return null;
+  var then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return null;
+  var mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + (mins === 1 ? ' minute ago' : ' minutes ago');
+  var hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+  var days = Math.round(hrs / 24);
+  return days + (days === 1 ? ' day ago' : ' days ago');
+}
+function renderHeader(){
+  $('#sub').textContent = fmtInt(trades.length) + ' sales across ' + byItem.size + ' items, ' + fmtDay(gMin) + ' to ' + fmtDay(gMax, true) + '.';
+  var upd = $('#updated');
+  if (dataSource === 'live' && dataUpdatedAt) {
+    var abs = new Date(dataUpdatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    upd.innerHTML = 'Data last published ' + esc(relTime(dataUpdatedAt) || '') + ' <span style="opacity:.7">(' + esc(abs) + ')</span>';
+  } else if (dataSource === 'fallback') {
+    upd.innerHTML = 'Showing a built-in snapshot — live data at <code>trades.json</code> couldn\'t be reached, so this may be out of date.';
+  } else {
+    upd.textContent = '';
+  }
+}
+
+/* ---------- rail ---------- */
+function spark(days, w){
+  var W = 64, H = 20;
+  if (!days.length) return '';
+  var vs = days.map(function(d){ return d.vwap; });
+  var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+  var span = w.maxD - w.minD + 1;
+  function X(d){ return 3 + ((d - (w.minD - 0.5)) / span) * (W - 6); }
+  function Y(v){ return hi === lo ? H/2 : H - 3 - ((v - lo) / (hi - lo)) * (H - 6); }
+  var pts = days.map(function(d){ return X(d.d).toFixed(1) + ',' + Y(d.vwap).toFixed(1); });
+  var last = days[days.length-1];
+  var line = days.length > 1 ? '<polyline points="' + pts.join(' ') + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' : '';
+  return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' + line +
+         '<circle cx="' + X(last.d).toFixed(1) + '" cy="' + Y(last.vwap).toFixed(1) + '" r="2.5" fill="var(--coin)"/></svg>';
+}
+function renderRail(){
+  var w = windowDays(), rows = [];
+  byItem.forEach(function(_, item){ var s = statsFor(item, w); if (s) rows.push({ item: item, s: s }); });
+  var q = state.q.trim().toLowerCase().replace(/\s+/g, '_');
+  if (q) rows = rows.filter(function(r){ return r.item.indexOf(q) >= 0; });
+  var by = {
+    trades: function(a,b){ return b.s.n - a.s.n || a.item.localeCompare(b.item); },
+    high:   function(a,b){ return b.s.last.vwap - a.s.last.vwap; },
+    low:    function(a,b){ return a.s.last.vwap - b.s.last.vwap; },
+    move:   function(a,b){ return Math.abs(b.s.change || 0) - Math.abs(a.s.change || 0); },
+    name:   function(a,b){ return a.item.localeCompare(b.item); }
+  };
+  rows.sort(by[state.sort]);
+  var list = $('#list'), keep = list.scrollTop;
+  if (!rows.length) { list.innerHTML = '<li class="empty">No items match.</li>'; return; }
+  list.innerHTML = rows.map(function(r){
+    var c = r.s.change, cls = c == null ? 'flat' : c > 0.05 ? 'up' : c < -0.05 ? 'down' : 'flat';
+    var meta = (c == null ? '' : '<span class="' + cls + '">' + (c > 0.05 ? '\u25B2 ' : c < -0.05 ? '\u25BC ' : '') + pct(c) + '</span> ') + r.s.n + (r.s.n === 1 ? ' sale' : ' sales');
+    return '<li><button class="row" type="button" data-item="' + esc(r.item) + '"' + (r.item === state.item ? ' aria-current="true"' : '') + '>' +
+      '<span class="r-name">' + esc(pretty(r.item)) + '</span>' +
+      '<span class="r-price">' + fmtPrice(r.s.last.vwap) + '</span>' +
+      '<span class="r-spark">' + spark(r.s.days, w) + '</span>' +
+      '<span class="r-meta">' + meta + '</span></button></li>';
+  }).join('');
+  list.scrollTop = keep;
+}
+
+/* ---------- chart ---------- */
+function niceTicks(a, b, n){
+  var span = b - a; if (span <= 0) return [a];
+  var step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0))), norm = step0 / mag;
+  var step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  var out = [], k0 = Math.ceil(a / step - 1e-9);
+  for (var k = k0; k * step <= b + step * 1e-9; k++) out.push(+(k * step).toPrecision(12));
+  return out;
+}
+function logTicks(a, b){
+  var out = [];
+  for (var e = Math.floor(Math.log10(a)); e <= Math.ceil(Math.log10(b)); e++) {
+    [1,2,5].forEach(function(m){ var v = m * Math.pow(10, e); if (v >= a && v <= b) out.push(v); });
+  }
+  return out;
+}
+function renderChart(){
+  var host = $('#chart'), tip = $('#tip');
+  tip.hidden = true;
+  var w = windowDays(), s = state.item ? statsFor(state.item, w) : null;
+  if (!s) {
+    host.innerHTML = '<div class="nodata">No sales of this item in this window.<br>Add trades below to build its history.</div>';
+    return;
+  }
+  var W = Math.max(280, host.clientWidth || 600), H = W < 520 ? 300 : 360;
+  var m = { l: 56, r: 14, t: 14, b: 28 }, volH = 46, gap = 20;
+  var plotW = W - m.l - m.r, plotH = H - m.t - m.b - volH - gap;
+  var span = w.maxD - w.minD + 1;
+  function X(d){ return m.l + ((d - (w.minD - 0.5)) / span) * plotW; }
+
+  var lo = s.lo, hi = s.hi, y0, y1, yt, Y;
+  if (state.log) {
+    var f = hi === lo ? 1.3 : 1.12;
+    y0 = Math.max(0.5, lo / f); y1 = hi * f; yt = logTicks(y0, y1);
+    if (yt.length < 3) yt = niceTicks(y0, y1, 4);
+    var l0 = Math.log(y0), l1 = Math.log(y1);
+    Y = function(v){ return m.t + plotH - (Math.log(v) - l0) / (l1 - l0) * plotH; };
+  } else {
+    var pad = (hi - lo) * 0.14 || hi * 0.1 || 1;
+    y0 = Math.max(0, lo - pad); y1 = hi + pad; yt = niceTicks(y0, y1, 4);
+    Y = function(v){ return m.t + plotH - (v - y0) / (y1 - y0) * plotH; };
+  }
+
+  var svg = [];
+  svg.push('<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Price history for ' + esc(pretty(state.item)) + ': ' + s.days.length + ' days with sales">');
+  yt.forEach(function(v){
+    var y = Y(v).toFixed(1);
+    svg.push('<line class="grid" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y + '" y2="' + y + '"/>');
+    svg.push('<text x="' + (m.l - 8) + '" y="' + (+y + 4) + '" text-anchor="end">' + fmtCompact(v) + '</text>');
+  });
+  var xBase = m.t + plotH;
+  svg.push('<line class="axis" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + xBase + '" y2="' + xBase + '"/>');
+
+  /* x ticks */
+  var stepDays = Math.max(1, Math.ceil(span / Math.floor(plotW / 62)));
+  for (var d = w.minD; d <= w.maxD; d += stepDays) {
+    svg.push('<text x="' + X(d).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + fmtDay(d) + '</text>');
+  }
+
+  /* volume */
+  var volTop = xBase + gap, volBase = volTop + volH;
+  var maxQ = Math.max.apply(null, s.days.map(function(x){ return x.qty; }));
+  var bw = Math.max(3, Math.min(26, plotW / span * 0.5));
+  svg.push('<text x="' + m.l + '" y="' + (volTop - 6) + '">Units sold per day</text>');
+  svg.push('<text x="' + (m.l - 8) + '" y="' + (volTop + 8) + '" text-anchor="end">' + fmtCompact(maxQ) + '</text>');
+  svg.push('<line class="axis" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + volBase + '" y2="' + volBase + '"/>');
+  s.days.forEach(function(x){
+    var bh = Math.max(2, x.qty / maxQ * volH);
+    svg.push('<rect class="vol" x="' + (X(x.d) - bw/2).toFixed(1) + '" y="' + (volBase - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="1"/>');
+  });
+
+  /* price: whiskers, lines, dots */
+  s.days.forEach(function(x){
+    if (x.hi > x.lo) svg.push('<line class="whisker" x1="' + X(x.d).toFixed(1) + '" x2="' + X(x.d).toFixed(1) + '" y1="' + Y(x.lo).toFixed(1) + '" y2="' + Y(x.hi).toFixed(1) + '"/>');
+  });
+  for (var i = 1; i < s.days.length; i++) {
+    var a = s.days[i-1], b = s.days[i], dashed = b.d - a.d > 1;
+    svg.push('<line class="pline"' + (dashed ? ' stroke-dasharray="4 4" opacity=".6"' : '') + ' x1="' + X(a.d).toFixed(1) + '" y1="' + Y(a.vwap).toFixed(1) + '" x2="' + X(b.d).toFixed(1) + '" y2="' + Y(b.vwap).toFixed(1) + '"/>');
+  }
+  var pts = s.days.map(function(x){ return { x: X(x.d), y: Y(x.vwap), day: x }; });
+  pts.forEach(function(p){ svg.push('<circle class="dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="5"/>'); });
+
+  svg.push('<line class="guide" id="guide" x1="0" x2="0" y1="' + m.t + '" y2="' + volBase + '" style="display:none"/>');
+  svg.push('<circle class="ring" id="ring" cx="0" cy="0" r="8" style="display:none"/>');
+  svg.push('</svg>');
+  host.innerHTML = svg.join('');
+
+  var el = host.querySelector('svg'), guide = el.querySelector('#guide'), ring = el.querySelector('#ring');
+  function show(ev){
+    var r = el.getBoundingClientRect(), mx = ev.clientX - r.left, best = null, bd = 1e9;
+    pts.forEach(function(p){ var dd = Math.abs(p.x - mx); if (dd < bd) { bd = dd; best = p; } });
+    if (!best) return;
+    var x = best.day;
+    guide.setAttribute('x1', best.x); guide.setAttribute('x2', best.x); guide.style.display = '';
+    ring.setAttribute('cx', best.x); ring.setAttribute('cy', best.y); ring.style.display = '';
+    tip.innerHTML = '<div class="d">' + fmtDay(x.d, true, true) + '</div>' +
+      '<div><b>' + fmtPrice(x.vwap) + '</b> average</div>' +
+      (x.hi > x.lo ? '<div>' + fmtPrice(x.lo) + ' to ' + fmtPrice(x.hi) + ' range</div>' : '') +
+      '<div>' + fmtInt(x.qty) + ' units, ' + x.n + (x.n === 1 ? ' sale' : ' sales') + '</div>';
+    tip.hidden = false;
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var left = best.x + 14; if (left + tw > W - 4) left = best.x - 14 - tw;
+    var top = best.y - th - 12; if (top < 4) top = best.y + 16;
+    tip.style.left = Math.max(4, left) + 'px'; tip.style.top = top + 'px';
+  }
+  function hide(){ tip.hidden = true; guide.style.display = 'none'; ring.style.display = 'none'; }
+  el.addEventListener('pointermove', show);
+  el.addEventListener('pointerdown', show);
+  el.addEventListener('pointerleave', function(ev){ if (ev.pointerType === 'mouse') hide(); });
+}
+
+/* ---------- stage ---------- */
+function statCell(label, value, cls){ return '<div><dt>' + label + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; }
+function renderStage(){
+  var w = windowDays(), item = state.item, s = item ? statsFor(item, w) : null;
+  $('#itemName').textContent = item ? pretty(item) : 'Pick an item';
+  $('#itemRaw').textContent = item || '';
+  var span = w.maxD - w.minD + 1;
+
+  /* range controls */
+  var opts = rangeOptions();
+  if (state.range !== 'all' && opts.indexOf(+state.range) < 0) state.range = 'all';
+  var seg = $('#rangeSeg');
+  seg.hidden = !opts.length;
+  seg.innerHTML = opts.map(function(n){ return '<button type="button" data-range="' + n + '" aria-pressed="' + (state.range == n) + '">' + n + ' days</button>'; }).join('') +
+    '<button type="button" data-range="all" aria-pressed="' + (state.range === 'all') + '">All</button>';
+  $('#scLin').setAttribute('aria-pressed', String(!state.log));
+  $('#scLog').setAttribute('aria-pressed', String(state.log));
+
+  if (!s) {
+    $('#latestPrice').textContent = '-';
+    $('#latestNote').textContent = item ? 'No sales in this window' : '';
+    $('#stats').innerHTML = ''; $('#warn').hidden = true;
+    $('#tbody').innerHTML = ''; $('#moreBtn').hidden = true;
+    renderChart();
+    return;
+  }
+  $('#latestPrice').textContent = fmtPrice(s.last.vwap);
+  $('#latestNote').textContent = 'average of ' + s.last.n + (s.last.n === 1 ? ' sale' : ' sales') + ' on ' + fmtDay(s.last.d);
+
+  var ch = s.change, chCls = ch == null ? 'flat' : ch > 0.05 ? 'up' : ch < -0.05 ? 'down' : 'flat';
+  $('#stats').innerHTML =
+    statCell('Change', ch == null ? 'Not enough days' : (ch > 0.05 ? '\u25B2 ' : ch < -0.05 ? '\u25BC ' : '') + pct(ch), chCls) +
+    statCell('Lowest sale', fmtPrice(s.lo)) +
+    statCell('Highest sale', fmtPrice(s.hi)) +
+    statCell('Units sold', fmtInt(s.qty)) +
+    statCell('Sales', fmtInt(s.n)) +
+    statCell('Days with sales', s.days.length + ' of ' + span);
+  var warn = $('#warn');
+  if (s.n < 5 || s.days.length < 3) {
+    warn.hidden = false;
+    warn.textContent = 'Only ' + s.n + (s.n === 1 ? ' sale' : ' sales') + ' on ' + s.days.length + (s.days.length === 1 ? ' day' : ' days') + ' in this window. That is too little to show a trend, so treat the price as a rough guide.';
+  } else warn.hidden = true;
+
+  renderChart();
+
+  var rows = (byItem.get(item) || []).filter(function(t){ return t.d >= w.minD && t.d <= w.maxD; }).sort(function(a,b){ return b.d - a.d; });
+  var limit = state.showAll ? rows.length : 40;
+  $('#tbody').innerHTML = rows.slice(0, limit).map(function(t){
+    return '<tr><td>' + fmtDay(t.d, true) + '</td><td>' + fmtInt(t.qty) + '</td><td>' + fmtPrice(t.price) + '</td><td>' + fmtInt(t.qty * t.price) + '</td></tr>';
+  }).join('');
+  var more = $('#moreBtn');
+  more.hidden = rows.length <= 40;
+  more.textContent = state.showAll ? 'Show fewer' : 'Show all ' + rows.length + ' sales';
+}
+function renderAll(){ renderHeader(); renderRail(); renderStage(); }
+
+function select(item){
+  state.item = item; state.showAll = false;
+  renderRail(); renderStage();
+  if (window.matchMedia('(max-width: 860px)').matches) $('#stage').scrollIntoView({ block: 'start' });
+}
+
+/* ---------- importer ---------- */
+var STOP = new Set(['each','ea','sold','x','for','at','price','coins','coin','gp','amount','item','date','when','the','a','of','qty','quantity','units','unit','total','buy','sell','trade','trades','per','today','yesterday','am','pm','and','to']);
+function parseImport(text, defDate){
+  var known = Array.from(byItem.keys()).sort(function(a,b){ return b.length - a.length; }).map(function(k){
+    return { k: k, re: new RegExp('(?<![a-z0-9_])(' + reEsc(k) + '|' + reEsc(k.replace(/_/g, ' ')) + ')(?![a-z0-9_])') };
+  });
+  var rows = [], skipped = [], lines = [];
+  /* a copied table can arrive as one long line: if a line holds 2+ dates, split it after each "each" */
+  text.split(/\r?\n/).forEach(function(l){
+    var nd = (l.match(/\d{4}-\d{2}-\d{2}/g) || []).length;
+    if (nd >= 2) l.split(/\beach\b/i).forEach(function(p){ lines.push(p); });
+    else lines.push(l);
+  });
+  /* a copied table can also arrive as one trade per several lines: a bare item-name
+     line (sometimes repeated), then a line with qty, date and price. Merge these back
+     into a single line so the rest of the parser sees one record per line. */
+  var nameOnly = /^[a-z][a-z0-9_]*$/i, merged = [], i = 0;
+  while (i < lines.length) {
+    var line = lines[i].trim();
+    if (nameOnly.test(line) && !/each/i.test(line)) {
+      var name = line, j = i + 1;
+      if (j < lines.length && lines[j].trim().toLowerCase() === name.toLowerCase()) j++;
+      var buf = [name], steps = 0;
+      while (j < lines.length && steps < 6) {
+        var nxt = lines[j].trim();
+        if (!nxt) { j++; continue; }
+        buf.push(nxt); j++; steps++;
+        if (/each/i.test(nxt) || /\d{4}-\d{2}-\d{2}/.test(nxt)) break;
+      }
+      merged.push(buf.join(' '));
+      i = j;
+    } else { merged.push(lines[i]); i++; }
+  }
+  lines = merged;
+  lines.forEach(function(raw){
+    var line = raw.replace(/[*`|>~]/g, ' ').trim();
+    if (!/\d/.test(line)) return;
+    var tab = /\t/.test(raw), noSpace = !/\s/.test(line), commas = (line.match(/,/g) || []).length;
+    var date = null, dm = line.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (dm) { date = dm[0]; line = line.replace(dm[0], ' '); }
+    else {
+      var um = line.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+      if (um) { date = um[3] + '-' + String(um[2]).padStart(2,'0') + '-' + String(um[1]).padStart(2,'0'); line = line.replace(um[0], ' '); }
+    }
+    var csvLike = !tab && ((commas >= 3 && !!dm) || (noSpace && commas >= 2));
+    var lower = line.toLowerCase().replace(/\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:am|pm)?\b/g, ' ');
+    var item = null;
+    for (var i = 0; i < known.length; i++) {
+      var mm = lower.match(known[i].re);
+      if (mm) { item = known[i].k; lower = lower.replace(mm[0], ' '); break; }
+    }
+    if (!item) {
+      var tre = /(?<![\w])[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?![\w])/g, tm;
+      while ((tm = tre.exec(lower))) {
+        var tok = tm[0];
+        if (STOP.has(tok) || /^x\d+$/.test(tok)) continue;
+        item = tok; lower = lower.slice(0, tm.index) + ' ' + lower.slice(tm.index + tok.length); break;
+      }
+    }
+    lower = lower.replace(/\beach\b|\bea\b/g, ' ').replace(/\bx(?=\d)/g, ' ').replace(/(?<=\d)x\b/g, ' ');
+    var s = lower;
+    if (csvLike) s = s.replace(/,/g, ' ');
+    else { s = s.replace(/\d{1,3}(?:,\d{3})+(?!\d)/g, function(v){ return v.replace(/,/g, ''); }).replace(/,/g, ' '); }
+    var nums = [], nre = /(?<![\w.])(\d+(?:\.\d+)?)\s?([kmb])?(?![\w])/g, nm;
+    while ((nm = nre.exec(s))) {
+      var n = parseFloat(nm[1]), suf = nm[2];
+      if (suf === 'k') n *= 1e3; else if (suf === 'm') n *= 1e6; else if (suf === 'b') n *= 1e9;
+      nums.push(Math.round(n));
+    }
+    var qty, price;
+    if (nums.length === 1) { qty = 1; price = nums[0]; } else { qty = nums[0]; price = nums[1]; }
+    var dt = date || defDate || todayISO();
+    var okDate = /^\d{4}-\d{2}-\d{2}$/.test(dt) && dayStr(dayNum(dt)) === dt;
+    if (!item || !nums.length || !(qty >= 1) || !(price >= 1) || !okDate) { skipped.push(raw.trim()); return; }
+    rows.push({ item: item, date: dt, qty: qty, price: price });
+  });
+  return { rows: rows, skipped: skipped };
+}
+/* plain browser download, no platform capability needed — works on any static host */
+function downloadFile(filename, content, mime){
+  var blob = new Blob([content], { type: mime });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+function toCSV(){
+  return 'item,date,units,price_each\n' + trades.slice().sort(function(a,b){ return a.d - b.d; }).map(function(t){
+    return [t.item, t.date, t.qty, t.price].join(',');
+  }).join('\n') + '\n';
+}
+function toTradesJSON(){
+  var sorted = trades.slice().sort(function(a,b){ return a.d - b.d; });
+  var tuples = sorted.map(function(t){ return [t.item, t.date, t.qty, t.price]; });
+  return JSON.stringify({ updatedAt: new Date().toISOString(), trades: tuples });
+}
+
+var pending = [];
+function runPreview(){
+  var text = $('#paste').value, box = $('#preview'), btn = $('#addBtn');
+  if (!text.trim()) { box.innerHTML = ''; btn.disabled = true; btn.textContent = 'Download updated trades.json'; pending = []; return; }
+  var res = parseImport(text, $('#defDate').value);
+  pending = newOnly(res.rows);
+  var known = new Set(byItem.keys()), fresh = [];
+  pending.forEach(function(t){ if (!known.has(t.item) && fresh.indexOf(t.item) < 0) fresh.push(t.item); });
+  var html = '<div>Read <b>' + res.rows.length + '</b> trade' + (res.rows.length === 1 ? '' : 's') + '. <b>' + pending.length + '</b> ' + (pending.length === 1 ? 'is' : 'are') + ' new.</div>';
+  if (fresh.length) html += '<div>' + fresh.length + ' new item' + (fresh.length === 1 ? '' : 's') + ': ' + fresh.slice(0, 8).map(function(x){ return '<code>' + esc(x) + '</code>'; }).join(' ') + (fresh.length > 8 ? ' and ' + (fresh.length - 8) + ' more' : '') + '. If any of these look like junk rather than item names, the paste was misread.</div>';
+  if (res.skipped.length) html += '<div>Could not read ' + res.skipped.length + ' line' + (res.skipped.length === 1 ? '' : 's') + ':</div><ul>' + res.skipped.slice(0, 3).map(function(x){ return '<li>' + esc(x.slice(0, 90)) + '</li>'; }).join('') + '</ul>';
+  box.innerHTML = html;
+  btn.disabled = pending.length === 0;
+  btn.textContent = pending.length ? 'Download trades.json with ' + pending.length + ' new trade' + (pending.length === 1 ? '' : 's') : 'Download updated trades.json';
+}
+function publishUpdate(){
+  if (!pending.length) return;
+  var n = pending.length;
+  trades = trades.concat(pending);
+  pending = []; $('#paste').value = '';
+  rebuild();
+  if (state.item == null || !byItem.has(state.item)) state.item = DEFAULT_ITEM;
+  dataSource = 'live'; dataUpdatedAt = new Date().toISOString();
+  downloadFile('trades.json', toTradesJSON(), 'application/json');
+  renderAll();
+  $('#preview').textContent = 'Downloaded trades.json with ' + n + ' new trade' + (n === 1 ? '' : 's') + ' merged in.';
+  $('#publishNote').textContent = 'Upload that file to your hosting, overwriting the old trades.json, to publish it for everyone.';
+  $('#addBtn').disabled = true; $('#addBtn').textContent = 'Download updated trades.json';
+}
+
+/* ---------- bargain finder (reads trade history, saves nothing of its own) ---------- */
+function vwapOf(s){
+  var val = 0, qty = 0;
+  s.days.forEach(function(d){ val += d.val; qty += d.qty; });
+  return qty ? val / qty : null;
+}
+var MIN_SALES_FOR_TRUST = 3, MIN_QTY_FOR_TRUST = 5;
+function usualPrice(item){
+  var full = statsFor(item, { minD: gMin, maxD: gMax });
+  if (!full) return null;
+  var recentMin = Math.max(gMin, gMax - 13);
+  var recent = statsFor(item, { minD: recentMin, maxD: gMax });
+  var recentQty = recent ? recent.qty : 0;
+  var src = (recent && recent.n >= MIN_SALES_FOR_TRUST && recentQty >= MIN_QTY_FOR_TRUST) ? recent : full;
+  var price = vwapOf(src);
+  if (price == null) return null;
+  var lowConfidence = src.n < MIN_SALES_FOR_TRUST || src.qty < MIN_QTY_FOR_TRUST;
+  return { price: price, n: src.n, qty: src.qty, days: src.days.length, recent: src === recent, lowConfidence: lowConfidence };
+}
+function groupListings(rows){
+  var m = new Map();
+  rows.forEach(function(r){
+    var g = m.get(r.item);
+    if (!g) { g = { item: r.item, minPrice: r.price, listings: 0, totalQty: 0 }; m.set(r.item, g); }
+    g.listings++; g.totalQty += r.qty;
+    if (r.price < g.minPrice) g.minPrice = r.price;
+  });
+  return Array.from(m.values());
+}
+function renderBargains(){
+  var text = $('#listingsPaste').value, prev = $('#bargainPreview'), out = $('#bargainResults');
+  $('#clearListingsBtn').hidden = !text;
+  if (!text.trim()) { prev.innerHTML = ''; out.innerHTML = ''; return; }
+  var res = parseImport(text, todayISO());
+  var groups = groupListings(res.rows);
+  prev.innerHTML = 'Read ' + groups.length + ' listed item' + (groups.length === 1 ? '' : 's') + ' from ' + res.rows.length + ' line' + (res.rows.length === 1 ? '' : 's') + (res.skipped.length ? ', could not read ' + res.skipped.length + ' line' + (res.skipped.length === 1 ? '' : 's') + '.' : '.');
+  if (!groups.length) { out.innerHTML = ''; return; }
+
+  var withHist = [], noHist = [], lowConfCount = 0;
+  groups.forEach(function(g){
+    var u = usualPrice(g.item);
+    if (u) withHist.push({ g: g, u: u, diff: (g.minPrice - u.price) / u.price * 100 });
+    else noHist.push(g.item);
+  });
+  /* rank by total value of the discount (diff% x quantity listed), not raw % alone,
+     so a huge cheap stack outranks a single unit at the same discount */
+  withHist.forEach(function(r){ r.weight = r.diff * r.g.totalQty; });
+  withHist.sort(function(a, b){
+    if (a.u.lowConfidence !== b.u.lowConfidence) return a.u.lowConfidence ? 1 : -1;
+    return a.weight - b.weight;
+  });
+  lowConfCount = withHist.filter(function(r){ return r.u.lowConfidence; }).length;
+
+  var rows = withHist.map(function(r){
+    var low = r.u.lowConfidence;
+    var cls = low ? '' : r.diff <= -25 ? 'hl-great' : r.diff <= -10 ? 'hl-good' : r.diff >= 10 ? 'hl-bad' : '';
+    var tone = low ? 'flat' : r.diff <= -10 ? 'up' : r.diff >= 10 ? 'down' : 'flat';
+    var arrow = r.diff < -0.5 ? '▼ ' : r.diff > 0.5 ? '▲ ' : '';
+    var label = low ? 'Limited data' : r.diff <= -25 ? 'Great bargain' : r.diff <= -10 ? 'Bargain' : r.diff >= 10 ? 'Pricey' : 'Near usual';
+    var basis = 'Based on ' + r.u.n + (r.u.n === 1 ? ' sale' : ' sales') + ', ' + fmtInt(r.u.qty) + ' units sold ' + (r.u.recent ? 'in the last 14 days' : 'all-time') + (low ? ' — too little history to trust fully' : '');
+    return '<tr class="' + cls + '">' +
+      '<td>' + esc(pretty(r.g.item)) + '</td>' +
+      '<td>' + fmtPrice(r.g.minPrice) + '</td>' +
+      '<td>' + fmtInt(r.g.totalQty) + '<span style="color:var(--muted)"> (' + r.g.listings + (r.g.listings === 1 ? ' listing)' : ' listings)') + '</span></td>' +
+      '<td title="' + esc(basis) + '">' + fmtPrice(r.u.price) + (low ? '<span>&dagger;</span>' : '') + '</td>' +
+      '<td><span class="badge ' + tone + (low ? ' lowconf' : '') + '" title="' + esc(basis) + '">' + arrow + pct(r.diff) + ' &middot; ' + label + '</span></td>' +
+      '</tr>';
+  }).join('');
+  out.innerHTML = '<div class="tablewrap"><table>' +
+    '<thead><tr><th>Item</th><th>Lowest listed</th><th>Qty listed</th><th>Usual price</th><th>Vs. usual</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>' +
+    '<p class="caption">Ranked by discount weighted by quantity listed, so a big cheap stack ranks above a single cheap unit at the same discount. Rows marked <b>Limited data</b> (&dagger;) have too few sales or units sold to trust the usual price yet — hover a row for the sales it is based on.' +
+    (lowConfCount ? ' ' + lowConfCount + ' of ' + withHist.length + ' shown ' + (lowConfCount === 1 ? 'is' : 'are') + ' limited data.' : '') + '</p>' +
+    (noHist.length ? '<p class="nohist">No price history yet, so these can\'t be compared: ' + noHist.map(function(x){ return '<code>' + esc(pretty(x)) + '</code>'; }).join(' ') + '</p>' : '');
+}
+
+/* ---------- wiring ---------- */
+function init(){
+  $('#defDate').value = todayISO();
+  loadData().then(function(){
+    state.item = byItem.has(DEFAULT_ITEM) ? DEFAULT_ITEM : Array.from(byItem.keys())[0];
+    renderAll();
+  });
+
+  $('#list').addEventListener('click', function(e){ var b = e.target.closest('[data-item]'); if (b) select(b.dataset.item); });
+  $('#q').addEventListener('input', function(e){ state.q = e.target.value; renderRail(); });
+  $('#sort').addEventListener('change', function(e){ state.sort = e.target.value; renderRail(); });
+  $('#rangeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-range]'); if (!b) return;
+    state.range = b.dataset.range; state.showAll = false; renderRail(); renderStage();
+  });
+  $('#scLin').addEventListener('click', function(){ state.log = false; renderStage(); });
+  $('#scLog').addEventListener('click', function(){ state.log = true; renderStage(); });
+  $('#moreBtn').addEventListener('click', function(){ state.showAll = !state.showAll; renderStage(); });
+  $('#openImport').addEventListener('click', function(){
+    var d = $('#import'); d.open = true; d.scrollIntoView({ block: 'start' }); $('#paste').focus({ preventScroll: true });
+  });
+  var t; $('#paste').addEventListener('input', function(){ clearTimeout(t); t = setTimeout(runPreview, 200); });
+  $('#defDate').addEventListener('change', runPreview);
+  $('#addBtn').addEventListener('click', publishUpdate);
+  $('#csvBtn').addEventListener('click', function(){ downloadFile('flatmmo-trades.csv', toCSV(), 'text/csv'); });
+  $('#refreshBtn').addEventListener('click', function(){
+    $('#refreshBtn').disabled = true;
+    loadData().then(function(ok){
+      $('#refreshBtn').disabled = false;
+      if (state.item == null || !byItem.has(state.item)) state.item = byItem.has(DEFAULT_ITEM) ? DEFAULT_ITEM : Array.from(byItem.keys())[0];
+      renderAll();
+      if (!ok) $('#preview').textContent = '';
+    });
+  });
+  setInterval(function(){ loadData().then(function(){ renderAll(); }); }, REFRESH_MS);
+
+  $('#viewSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-view]'); if (!b) return;
+    var toTracker = b.dataset.view === 'tracker';
+    $('#viewSeg').querySelectorAll('[data-view]').forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+    $('#trackerView').hidden = !toTracker; $('#bargainView').hidden = toTracker;
+    if (toTracker) renderChart(); /* the chart may have been sized while hidden (0 width); fix it up now it's visible */
+  });
+  var bt; $('#listingsPaste').addEventListener('input', function(){ clearTimeout(bt); bt = setTimeout(renderBargains, 250); });
+  $('#findBargainsBtn').addEventListener('click', renderBargains);
+  $('#clearListingsBtn').addEventListener('click', function(){
+    $('#listingsPaste').value = ''; $('#bargainPreview').innerHTML = ''; $('#bargainResults').innerHTML = ''; $('#clearListingsBtn').hidden = true;
+  });
+
+  var ro = window.ResizeObserver ? new ResizeObserver(function(){ renderChart(); }) : null;
+  if (ro) ro.observe($('#chart'));
+  else window.addEventListener('resize', renderChart);
+}
+init();
+})();
+</script>
+</body>
+</html>
