@@ -1,0 +1,43 @@
+name: Update FlatMMO trade data
+
+on:
+  schedule:
+    # Every hour, at minute 7 (off the top of the hour, since lots of
+    # scheduled Actions fire at :00 and get queued/delayed).
+    - cron: "7 * * * *"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write   # needed so the job can push the updated trades.json
+
+concurrency:
+  group: update-trades
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Scrape latest trades
+        id: scrape
+        run: python3 scripts/update_trades.py
+
+      - name: Commit and push if trades.json changed
+        run: |
+          if git diff --quiet -- flatmmo/trades.json; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "flatmmo-price-tracker-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add flatmmo/trades.json
+          git commit -m "Auto-update trade data"
+          git push
