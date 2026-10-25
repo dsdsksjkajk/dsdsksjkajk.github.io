@@ -30,6 +30,20 @@ class TableRowExtractor(html.parser.HTMLParser):
         elif tag == "td":
             self._in_cell = True
             self._cell_parts = []
+        elif tag == "img" and self._in_cell:
+            # Item icons sometimes carry the name only in alt text, with no
+            # separate text node alongside them — capture it either way.
+            alt = dict(attrs).get("alt")
+            if alt:
+                self._cell_parts.append(alt)
+
+    def handle_startendtag(self, tag, attrs):
+        # Void elements like <img ... /> go through this instead of
+        # handle_starttag in some parses; cover both.
+        if tag == "img" and self._in_cell:
+            alt = dict(attrs).get("alt")
+            if alt:
+                self._cell_parts.append(alt)
 
     def handle_endtag(self, tag):
         if tag == "td" and self._in_cell:
@@ -78,19 +92,24 @@ def dedupe_name(name):
     return name
 
 
-def parse_price(text):
-    t = re.sub(r"(?i)\s*each\s*$", "", text).strip()
-    t = t.replace(",", "")
+def _clean_number(text):
+    """Strip thousands separators, stray whitespace (incl. non-breaking
+    space) and any trailing unit word, leaving just the digits — or None
+    if what's left isn't a plain integer."""
+    t = text.replace("\xa0", " ")
+    t = re.sub(r"(?i)\s*each\s*$", "", t).strip()
+    t = re.sub(r"[,\s]", "", t)
     if not re.fullmatch(r"\d+", t):
         return None
     return int(t)
+
+
+def parse_price(text):
+    return _clean_number(text)
 
 
 def parse_qty(text):
-    t = text.replace(",", "").strip()
-    if not re.fullmatch(r"\d+", t):
-        return None
-    return int(t)
+    return _clean_number(text)
 
 
 def rows_to_trades(rows):
