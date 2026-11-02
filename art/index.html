@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Art wall · dsdsksjkajk</title>
+<meta name="description" content="Post your drawings, pixel art and GIFs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1013; --panel:#171A1F; --panel2:#1D2127; --line:#2A2E35;
+  --text:#ECE9E4; --muted:#8B8F98; --accent:#E8A33D; --bad:#FF7B7B; --good:#7CD992;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);min-height:100vh;
+  font:400 16px/1.6 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+a{color:inherit}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace}
+
+#glow{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,20%), rgba(232,163,61,.09), transparent 70%)}
+
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:40px 20px 10vh}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9vh}
+.back{font:500 14px/1 'JetBrains Mono',monospace;color:var(--muted);text-decoration:none}
+.back:hover{color:var(--accent)}
+.acct{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
+.acct b{color:var(--text);font-weight:600}
+
+.btn{border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 16px;
+  font:500 13px/1 'JetBrains Mono',monospace;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.solid{background:var(--accent);border-color:var(--accent);color:#16120A;font-weight:700}
+.btn.solid:hover{background:#F1B55A;color:#16120A}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* heading */
+.prompt{font:500 15px/1 'JetBrains Mono',monospace;color:var(--accent);margin:0 0 18px}
+.prompt::before{content:"$ ";opacity:.6}
+h1{margin:0 0 10px;font:700 clamp(32px,7vw,48px)/1.1 'JetBrains Mono',monospace;letter-spacing:-0.01em}
+p.lede{margin:0 0 40px;color:var(--muted);max-width:52ch}
+
+/* upload */
+.upload{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:18px;margin-bottom:48px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;
+  border:1.5px dashed var(--line);border-radius:10px;padding:34px 16px;cursor:pointer;color:var(--muted);
+  transition:border-color .15s, background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(232,163,61,.05);color:var(--text)}
+.drop strong{color:var(--text);font-weight:600}
+.drop small{font-size:13px}
+.compose{display:flex;gap:16px;align-items:flex-start}
+.compose .thumb{flex:none;width:140px;height:140px;border-radius:10px;background:var(--panel2) center/contain no-repeat;
+  border:1px solid var(--line);image-rendering:auto}
+.compose .fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.compose label{font-size:13px;color:var(--muted)}
+.field{display:block;width:100%;margin-top:5px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);
+  background:var(--bg);font-size:16px}
+.field:focus{outline:2px solid var(--accent);border-color:transparent}
+.fileinfo{font:500 12px/1.4 'JetBrains Mono',monospace;color:var(--muted);word-break:break-all}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.msg{min-height:20px;margin:10px 0 0;font-size:14px}
+.upload .msg:empty{display:none}
+.msg.bad{color:var(--bad)} .msg.good{color:var(--good)}
+.bar{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;width:30%;background:var(--accent);animation:slide 1s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+
+/* gallery */
+.gal-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 14px}
+h2.label{margin:0;font:500 13px/1 'Inter',sans-serif;color:var(--muted)}
+.count{font:500 12px/1 'JetBrains Mono',monospace;color:var(--muted)}
+.grid{columns:4 220px;column-gap:14px}
+.card{break-inside:avoid;margin:0 0 14px;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  background:var(--panel);display:block;width:100%;padding:0;text-align:left;cursor:zoom-in;
+  transition:border-color .15s, transform .15s}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card img{display:block;width:100%;height:auto;background:var(--panel2)}
+.card .meta{display:flex;justify-content:space-between;gap:8px;padding:9px 11px;font-size:13px}
+.card .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .by{color:var(--muted);flex:none}
+.gif{position:absolute;top:8px;left:8px;font:700 10px/1 'JetBrains Mono',monospace;background:#000b;
+  color:var(--accent);padding:4px 6px;border-radius:4px}
+.imgwrap{position:relative}
+.empty{color:var(--muted);text-align:center;padding:60px 0;border:1px dashed var(--line);border-radius:12px}
+.more{display:flex;justify-content:center;margin-top:10px}
+
+/* dialogs */
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:0;max-width:calc(100vw - 24px)}
+dialog::backdrop{background:rgba(5,6,8,.82);backdrop-filter:blur(3px)}
+#auth{width:380px}
+#auth form{padding:24px}
+#auth h3{margin:0 0 4px;font:700 22px/1.2 'JetBrains Mono',monospace}
+#auth .sub{margin:0 0 16px;color:var(--muted);font-size:14px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tabs button{flex:1;padding:9px;border:1px solid var(--line);border-radius:8px;background:transparent;cursor:pointer;font-weight:600;font-size:14px}
+.tabs button.on{border-color:var(--accent);color:var(--accent)}
+#auth label{display:block;margin-bottom:12px;font-size:13px;color:var(--muted)}
+#auth .row{justify-content:flex-end;margin-top:6px}
+
+#view{width:min(1000px,100vw - 24px);background:#0A0B0D}
+#view .stage{display:flex;align-items:center;justify-content:center;background:#0A0B0D;max-height:78vh}
+#view img{display:block;max-width:100%;max-height:78vh;object-fit:contain}
+#view .info{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+#view .info h3{margin:0;font-size:16px;font-weight:600}
+#view .info p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+  background:#000a;cursor:pointer;font-size:18px;line-height:1}
+.x:hover{border-color:var(--accent);color:var(--accent)}
+.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+
+footer{margin-top:70px;color:var(--muted);font-size:13px}
+
+@media (max-width:560px){
+  .top{margin-bottom:6vh}
+  .compose{flex-direction:column}
+  .compose .thumb{width:100%;height:200px}
+  .grid{columns:2 140px;column-gap:10px}
+  .card{margin-bottom:10px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="glow" aria-hidden="true"></div>
+
+<div class="wrap">
+  <div class="top">
+    <a class="back" href="../">&larr; dsdsksjkajk</a>
+    <div class="acct" id="acct">
+      <span id="who" hidden>signed in as <b id="who-name"></b></span>
+      <button class="btn" id="login-btn" type="button">Log in</button>
+      <button class="btn" id="logout-btn" type="button" hidden>Log out</button>
+    </div>
+  </div>
+
+  <p class="prompt">ls ./art</p>
+  <h1>Art wall</h1>
+  <p class="lede">Drawings, pixel art, GIFs, whatever you've made. Post it here and everyone who visits can see it.</p>
+
+  <section class="upload" aria-label="Upload art">
+    <div id="pick">
+      <label class="drop" id="drop" tabindex="0">
+        <strong>Drop an image or GIF here</strong>
+        <span>or click to choose a file</span>
+        <small class="mono">PNG · JPG · GIF · WEBP &nbsp;·&nbsp; up to 8 MB</small>
+        <input type="file" id="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+      </label>
+    </div>
+    <form id="compose" class="compose" hidden>
+      <div class="thumb" id="thumb" role="img" aria-label="Preview"></div>
+      <div class="fields">
+        <label>Title <span class="mono">(optional)</span>
+          <input class="field" id="title" maxlength="80" autocomplete="off" placeholder="Untitled">
+        </label>
+        <div class="fileinfo" id="fileinfo"></div>
+        <div class="row">
+          <button class="btn solid" id="post" type="submit">Post it</button>
+          <button class="btn" id="cancel" type="button">Cancel</button>
+        </div>
+      </div>
+    </form>
+    <div class="bar" id="busy" hidden><i></i></div>
+    <p class="msg" id="up-msg" role="status"></p>
+  </section>
+
+  <div class="gal-head">
+    <h2 class="label">Latest</h2>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden>Nothing here yet. Be the first to post something.</p>
+  <div class="more"><button class="btn" id="more" type="button" hidden>Load more</button></div>
+
+  <footer>Logins are shared with Idle MMO, so if you have a game account, use that.</footer>
+</div>
+
+<dialog id="auth">
+  <form id="auth-form" method="dialog" novalidate>
+    <h3>Log in to post</h3>
+    <p class="sub">Same account as Idle MMO.</p>
+    <div class="tabs" role="tablist">
+      <button type="button" class="on" data-mode="login">Log in</button>
+      <button type="button" data-mode="register">New account</button>
+    </div>
+    <label>Username
+      <input class="field" id="u" autocomplete="username" maxlength="20" required>
+    </label>
+    <label>Password
+      <input class="field" id="p" type="password" autocomplete="current-password" required>
+    </label>
+    <p class="msg" id="auth-msg" role="status"></p>
+    <div class="row">
+      <button class="btn" type="button" id="auth-close">Cancel</button>
+      <button class="btn solid" type="submit" id="auth-go">Log in</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="view">
+  <button class="x" id="view-x" type="button" aria-label="Close">&times;</button>
+  <div class="stage"><img id="view-img" alt=""></div>
+  <div class="info">
+    <div><h3 id="view-title"></h3><p id="view-meta"></p></div>
+    <div class="row">
+      <a class="btn" id="view-open" target="_blank" rel="noopener">Open full size</a>
+      <button class="btn danger" id="view-del" type="button" hidden>Delete</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="config.js?v=1"></script>
+<script>
+(function(){
+'use strict';
+var C = window.ART_CONFIG || {};
+var BASE = String(C.url || '').replace(/\/$/, '');
+var TYPES = { 'image/png':'png', 'image/jpeg':'jpg', 'image/gif':'gif', 'image/webp':'webp' };
+var PAGE = 24;
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- Supabase over plain fetch (same approach as Idle MMO) ---------- */
+var S = {
+  token:null, refresh:null, expires:0, uid:null, user:null,
+  fakeEmail:function(n){ return 'u_' + n.toLowerCase() + '@dsdsksjkajk.github.io'; },
+  store:function(s){
+    this.token = s.access_token; this.refresh = s.refresh_token;
+    this.expires = Date.now() + (s.expires_in || 3600) * 1000;
+    if (s.user) { this.uid = s.user.id; this.user = (s.user.user_metadata && s.user.user_metadata.username) || this.user; }
+    try { localStorage.setItem('art_rt', this.refresh); } catch(e){}
+  },
+  clear:function(){
+    this.token = this.refresh = this.uid = this.user = null; this.expires = 0;
+    try { localStorage.removeItem('art_rt'); } catch(e){}
+  },
+  http:async function(path, o){
+    o = o || {};
+    var h = Object.assign({ apikey:C.anonKey, Authorization:'Bearer ' + (o.token || C.anonKey) }, o.headers || {});
+    var body = o.body;
+    if (body !== undefined && !(body instanceof Blob)) { h['Content-Type'] = 'application/json'; body = JSON.stringify(body); }
+    var r, j = null;
+    try { r = await fetch(BASE + path, { method:o.method || 'GET', headers:h, body:body }); }
+    catch(e){ throw new Error("Can't reach the server. Check your connection."); }
+    try { var t = await r.text(); j = t ? JSON.parse(t) : null; } catch(e){ j = null; }
+    if (!r.ok) {
+      var err = new Error(String((j && (j.msg || j.error_description || j.message || j.error)) || ('HTTP ' + r.status)));
+      err.status = r.status; throw err;
+    }
+    return j;
+  },
+  ensure:async function(){
+    if (!this.refresh) { var e = new Error('Log in first.'); e.status = 401; throw e; }
+    if (this.token && Date.now() < this.expires - 60000) return;
+    try { this.store(await this.http('/auth/v1/token?grant_type=refresh_token', { method:'POST', body:{ refresh_token:this.refresh } })); }
+    catch(e){ if (e.status === 400 || e.status === 401) { this.clear(); renderAcct(); e.message = 'Your login expired. Log in again.'; } throw e; }
+  },
+  friendly:function(e){
+    var m = (e.message || '').toLowerCase();
+    if (/already (registered|been registered)|already exists/.test(m)) return 'That username is already taken.';
+    if (/invalid login|invalid credentials/.test(m)) return 'Wrong username or password.';
+    if (/rate limit|too many/.test(m)) return 'Too many attempts. Wait a minute and try again.';
+    if (/signups? (not allowed|disabled)/.test(m)) return 'New accounts are currently disabled.';
+    if (/payload too large|exceeded the maximum/.test(m)) return 'That file is too big (8 MB max).';
+    if (/mime type|invalid_mime/.test(m)) return 'Only PNG, JPG, GIF or WEBP files.';
+    if (/relation .*art_posts.* does not exist|bucket not found/.test(m)) return 'The art wall is not set up yet (see art/SETUP.md).';
+    return e.message;
+  }
+};
+
+/* ---------- account ---------- */
+function renderAcct(){
+  var on = !!S.refresh && !!S.user;
+  $('who').hidden = !on; $('logout-btn').hidden = !on; $('login-btn').hidden = on;
+  $('who-name').textContent = S.user || '';
+}
+var mode = 'login';
+function setMode(m){
+  mode = m;
+  Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(b){ b.classList.toggle('on', b.dataset.mode === m); });
+  $('auth-go').textContent = m === 'login' ? 'Log in' : 'Create account';
+  $('p').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+  setMsg('auth-msg', '');
+}
+var afterLogin = null;
+function openAuth(then){
+  afterLogin = then || null; setMode('login'); $('auth').showModal(); $('u').focus();
+}
+document.querySelector('.tabs').addEventListener('click', function(e){ var b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
+$('login-btn').onclick = function(){ openAuth(); };
+$('auth-close').onclick = function(){ $('auth').close(); };
+$('logout-btn').onclick = async function(){
+  try { if (S.token) await S.http('/auth/v1/logout', { method:'POST', token:S.token }); } catch(e){}
+  S.clear(); renderAcct();
+};
+$('auth-form').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var u = $('u').value.trim(), p = $('p').value;
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(u)) return setMsg('auth-msg', 'Username: 3-20 letters, numbers or _.', 'bad');
+  if (p.length < (mode === 'register' ? 8 : 1)) return setMsg('auth-msg', mode === 'register' ? 'Password must be at least 8 characters.' : 'Enter your password.', 'bad');
+  $('auth-go').disabled = true; setMsg('auth-msg', mode === 'login' ? 'Logging in…' : 'Creating account…');
+  try {
+    var sess;
+    if (mode === 'register') {
+      sess = await S.http('/auth/v1/signup', { method:'POST', body:{ email:S.fakeEmail(u), password:p, data:{ username:u } } });
+      if (!sess || !sess.access_token) throw new Error('Account created, but email confirmation is still on in Supabase.');
+    } else {
+      sess = await S.http('/auth/v1/token?grant_type=password', { method:'POST', body:{ email:S.fakeEmail(u), password:p } });
+    }
+    S.user = u; S.store(sess); renderAcct();
+    $('p').value = ''; $('auth').close();
+    if (afterLogin) { var f = afterLogin; afterLogin = null; f(); }
+  } catch(err){ setMsg('auth-msg', S.friendly(err), 'bad'); }
+  finally { $('auth-go').disabled = false; }
+});
+
+/* ---------- upload ---------- */
+var chosen = null, dims = null, previewUrl = null;
+function setMsg(id, t, cls){ var m = $(id); m.textContent = t || ''; m.className = 'msg' + (cls ? ' ' + cls : ''); }
+function fmtSize(b){ return b > 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b/1024)) + ' KB'; }
+function resetPick(){
+  chosen = null; dims = null;
+  if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  $('file').value = ''; $('title').value = '';
+  $('compose').hidden = true; $('pick').hidden = false;
+}
+function choose(f){
+  setMsg('up-msg', '');
+  if (!f) return;
+  if (!TYPES[f.type]) return setMsg('up-msg', 'Only PNG, JPG, GIF or WEBP files.', 'bad');
+  if (f.size > C.maxBytes) return setMsg('up-msg', 'That file is ' + fmtSize(f.size) + '. The limit is 8 MB.', 'bad');
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(f);
+  var img = new Image();
+  img.onload = function(){
+    chosen = f; dims = { w:img.naturalWidth, h:img.naturalHeight };
+    $('thumb').style.backgroundImage = 'url("' + previewUrl + '")';
+    $('thumb').style.imageRendering = (dims.w <= 256 && dims.h <= 256) ? 'pixelated' : 'auto';
+    $('fileinfo').textContent = f.name + ' · ' + dims.w + '×' + dims.h + ' · ' + fmtSize(f.size);
+    $('title').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').slice(0, 80);
+    $('pick').hidden = true; $('compose').hidden = false; $('title').focus(); $('title').select();
+  };
+  img.onerror = function(){ setMsg('up-msg', "That file doesn't look like a valid image.", 'bad'); };
+  img.src = previewUrl;
+}
+$('file').addEventListener('change', function(){ choose(this.files[0]); });
+$('drop').addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+['dragenter','dragover'].forEach(function(t){ $('drop').addEventListener(t, function(e){ e.preventDefault(); this.classList.add('over'); }); });
+['dragleave','drop'].forEach(function(t){ $('drop').addEventListener(t, function(e){ e.preventDefault(); this.classList.remove('over'); }); });
+$('drop').addEventListener('drop', function(e){ choose(e.dataTransfer.files[0]); });
+document.addEventListener('paste', function(e){
+  if ($('compose').hidden === false || document.querySelector('dialog[open]')) return;
+  var it = Array.prototype.find.call(e.clipboardData ? e.clipboardData.items : [], function(i){ return i.kind === 'file' && TYPES[i.type]; });
+  if (it) choose(it.getAsFile());
+});
+$('cancel').onclick = function(){ resetPick(); setMsg('up-msg', ''); };
+
+function rid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+async function doPost(){
+  if (!chosen) return;
+  if (!S.refresh) return openAuth(doPost);
+  $('post').disabled = true; $('cancel').disabled = true; $('busy').hidden = false;
+  setMsg('up-msg', 'Uploading…');
+  var path = null;
+  try {
+    await S.ensure();
+    path = S.uid + '/' + rid() + '.' + TYPES[chosen.type];
+    await S.http('/storage/v1/object/' + C.bucket + '/' + path, {
+      method:'POST', token:S.token, body:chosen,
+      headers:{ 'Content-Type':chosen.type, 'x-upsert':'false' } });
+    var rows = await S.http('/rest/v1/art_posts', {
+      method:'POST', token:S.token, headers:{ Prefer:'return=representation' },
+      body:{ title:$('title').value.trim().slice(0, 80), path:path, mime:chosen.type, width:dims.w, height:dims.h } });
+    path = null;
+    resetPick(); setMsg('up-msg', 'Posted!', 'good');
+    if (rows && rows[0]) { $('empty').hidden = true; $('grid').prepend(card(rows[0])); total++; renderCount(); }
+  } catch(err){
+    if (err.status === 401) { setMsg('up-msg', ''); openAuth(doPost); }
+    else setMsg('up-msg', S.friendly(err), 'bad');
+    if (path) { try { await S.http('/storage/v1/object/' + C.bucket + '/' + path, { method:'DELETE', token:S.token }); } catch(e){} }
+  } finally {
+    $('post').disabled = false; $('cancel').disabled = false; $('busy').hidden = true;
+  }
+}
+$('compose').addEventListener('submit', function(e){ e.preventDefault(); doPost(); });
+
+/* ---------- gallery ---------- */
+var offset = 0, total = 0, byId = {};
+function publicUrl(p){ return BASE + '/storage/v1/object/public/' + C.bucket + '/' + p.split('/').map(encodeURIComponent).join('/'); }
+function ago(iso){
+  var s = (Date.now() - Date.parse(iso)) / 1000;
+  if (s < 60) return 'just now';
+  var u = [[31536000,'y'],[2592000,'mo'],[86400,'d'],[3600,'h'],[60,'m']];
+  for (var i = 0; i < u.length; i++) if (s >= u[i][0]) return Math.floor(s / u[i][0]) + u[i][1] + ' ago';
+}
+function card(p){
+  byId[p.id] = p;
+  var b = document.createElement('button');
+  b.type = 'button'; b.className = 'card'; b.dataset.id = p.id; b.dataset.uid = p.user_id;
+  var w = document.createElement('div'); w.className = 'imgwrap';
+  var img = document.createElement('img');
+  img.loading = 'lazy'; img.decoding = 'async'; img.src = publicUrl(p.path);
+  img.alt = p.title || 'Untitled';
+  if (p.width && p.height) { img.width = p.width; img.height = p.height; }
+  if (p.width <= 256 && p.height <= 256) img.style.imageRendering = 'pixelated';
+  w.appendChild(img);
+  if (p.mime === 'image/gif') { var g = document.createElement('span'); g.className = 'gif'; g.textContent = 'GIF'; w.appendChild(g); }
+  var m = document.createElement('div'); m.className = 'meta';
+  var t = document.createElement('span'); t.className = 't'; t.textContent = p.title || 'Untitled';
+  var by = document.createElement('span'); by.className = 'by'; by.textContent = p.username;
+  m.appendChild(t); m.appendChild(by);
+  b.appendChild(w); b.appendChild(m);
+  return b;
+}
+function renderCount(){ $('count').textContent = total ? total + (total === 1 ? ' piece' : ' pieces') : ''; }
+async function load(){
+  $('more').disabled = true;
+  try {
+    var r;
+    try { r = await fetch(BASE + '/rest/v1/art_posts?select=*&order=created_at.desc,id.desc&limit=' + PAGE + '&offset=' + offset,
+      { headers:{ apikey:C.anonKey, Authorization:'Bearer ' + C.anonKey, Prefer:'count=exact' } }); }
+    catch(e){ throw new Error("Can't reach the server. Check your connection."); }
+    var rows = await r.json();
+    if (!r.ok) throw new Error((rows && rows.message) || ('HTTP ' + r.status));
+    var cr = r.headers.get('content-range'); if (cr && cr.indexOf('/') > -1) total = parseInt(cr.split('/')[1], 10) || 0;
+    var frag = document.createDocumentFragment();
+    rows.forEach(function(p){ if (!byId[p.id]) frag.appendChild(card(p)); });
+    $('grid').appendChild(frag);
+    offset += rows.length;
+    $('empty').hidden = offset > 0 || $('grid').children.length > 0;
+    $('more').hidden = rows.length < PAGE;
+    renderCount();
+  } catch(e){
+    $('empty').hidden = false;
+    $('empty').textContent = "Couldn't load the art wall: " + S.friendly(e);
+  } finally { $('more').disabled = false; }
+}
+$('more').onclick = load;
+
+/* ---------- viewer ---------- */
+var viewing = null;
+$('grid').addEventListener('click', function(e){
+  var c = e.target.closest('.card'); if (!c) return;
+  var p = byId[c.dataset.id]; if (!p) return;
+  viewing = p;
+  var url = publicUrl(p.path);
+  $('view-img').src = url; $('view-img').alt = p.title || 'Untitled';
+  $('view-img').style.imageRendering = (p.width <= 256 && p.height <= 256) ? 'pixelated' : 'auto';
+  $('view-title').textContent = p.title || 'Untitled';
+  $('view-meta').textContent = 'by ' + p.username + ' · ' + ago(p.created_at) + (p.width ? ' · ' + p.width + '×' + p.height : '');
+  $('view-open').href = url;
+  $('view-del').hidden = !(S.uid && S.uid === p.user_id);
+  $('view').showModal();
+});
+$('view-x').onclick = function(){ $('view').close(); };
+$('view').addEventListener('click', function(e){ if (e.target === this) this.close(); });
+$('view').addEventListener('close', function(){ $('view-img').removeAttribute('src'); viewing = null; });
+$('view-del').onclick = async function(){
+  var p = viewing; if (!p || !confirm('Delete "' + (p.title || 'Untitled') + '"? This can\'t be undone.')) return;
+  this.disabled = true;
+  try {
+    await S.ensure();
+    await S.http('/rest/v1/art_posts?id=eq.' + p.id, { method:'DELETE', token:S.token });
+    try { await S.http('/storage/v1/object/' + C.bucket + '/' + p.path, { method:'DELETE', token:S.token }); } catch(e){}
+    var el = document.querySelector('.card[data-id="' + p.id + '"]'); if (el) el.remove();
+    delete byId[p.id]; total = Math.max(0, total - 1); offset = Math.max(0, offset - 1); renderCount();
+    $('empty').hidden = $('grid').children.length > 0;
+    $('view').close();
+  } catch(e){ alert(S.friendly(e)); }
+  finally { this.disabled = false; }
+};
+
+/* ---------- start ---------- */
+(async function(){
+  try { S.refresh = localStorage.getItem('art_rt'); } catch(e){}
+  if (S.refresh) {
+    try {
+      await S.ensure();
+      var u = await S.http('/auth/v1/user', { token:S.token });
+      S.uid = u.id; S.user = (u.user_metadata && u.user_metadata.username) || 'player';
+    } catch(e){ if (e.status === 401) S.clear(); }
+  }
+  renderAcct();
+})();
+load();
+
+/* cursor glow, same as the hub */
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && !window.matchMedia('(hover: none)').matches) {
+  var glow = $('glow');
+  window.addEventListener('pointermove', function(e){
+    glow.style.setProperty('--mx', e.clientX + 'px'); glow.style.setProperty('--my', e.clientY + 'px');
+  });
+}
+})();
+</script>
+</body>
+</html>
