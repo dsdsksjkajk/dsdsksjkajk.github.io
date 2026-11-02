@@ -1,10 +1,18 @@
+# Art wall: one-time setup (about 2 minutes)
+
+The art wall reuses the Idle MMO Supabase project, so `config.js` is already filled in and logins are shared.
+
+1. Open your Supabase project -> **SQL Editor -> New query**.
+2. Paste all of `art/setup.sql` and click **Run**. This creates the public `art` storage bucket and the `art_posts` table with its rules.
+3. Commit and push. The page is at https://dsdsksjkajk.github.io/art/
+
 ## Rules the database enforces
 - Anyone can view; only logged-in users can post.
 - PNG, JPG, GIF or WEBP only, 8 MB max per file, 30 posts per user per day (admins have no daily limit; run `art/admin-unlimited.sql` if you set up admin before this).
 - Users can delete their own posts; nobody can edit or delete anyone else's.
 - The poster's username is filled in by the server, so it can't be faked.
 
-## Moderating notes
+## Moderating
 Admins can delete any post straight from the art wall: open it and click **Delete (admin)**. That removes the post and its image file. (Run `art/admin-delete.sql` once to switch this on.) Nobody needs the Supabase login for this; to give someone moderator powers, make them an admin (see the bottom of this file).
 
 Fallback if ever needed: Supabase -> **Table Editor -> art_posts**, delete the row, then **Storage -> art**, delete the file in that user's folder.
@@ -25,6 +33,7 @@ How it works:
    - **What to do with those sprites** picks the mode:
      - **Replace**: show the post's art instead of the sprite.
      - **Decorate**: keep the game's sprite, add twinkling fairy lights, and put the post's art (e.g. presents) at its base. Great for trees.
+     - **Hat**: keep the game's sprite and put the post's art on its head. The script finds the head on every animation frame by itself (ignoring raised swords and the like) and sizes the art to it, so one Santa hat works for every NPC and monster.
      - **Dress up**: keep the game's sprite and lay the post's art exactly over its solid area (soft shadows ignored). Draw the art at the sprite's own size with a transparent background, e.g. a hat and scarf for the snowman. Art made at **exactly** the game image's size maps onto it pixel for pixel, even when the game only draws part of it. Use this for things painted into a map (e.g. lights on the houses): make a see-through layer the same size as the map image.
 5. Players with the script pick up changes within 5 minutes, or straight away if they press **↻ Check now** or reload.
 

@@ -275,6 +275,7 @@ footer{margin-top:70px;color:var(--muted);font-size:13px}
           <option value="">Replace: show this art instead of the sprite</option>
           <option value="+">Decorate: keep the sprite, add fairy lights, put this art at its base (presents under a tree)</option>
           <option value="^">Dress up: keep the sprite, lay this art exactly over it (a hat and scarf on a snowman)</option>
+          <option value="@">Hat: keep the sprite, put this art on its head (Santa hats for NPCs and monsters)</option>
         </select>
       </label>
       <p class="hintx">Get sprite names from the in-game art panel → Sprite finder → Copy. A <span class="mono">*</span> matches anything, so <span class="mono">images/npcs/goblin*</span> covers every goblin frame. Leave empty to only show it in the in-game gallery.</p>
@@ -569,8 +570,8 @@ $('view-x').onclick = function(){ $('view').close(); };
 function showReps(p){
   var r = p.replaces || [];
   var c = r.length ? r[0].charAt(0) : '';
-  $('adm-mode').value = (c === '+' || c === '^') ? c : '';
-  $('adm-rep').value = r.map(function(v){ return v.replace(/^[+^]/, ''); }).join('\n');
+  $('adm-mode').value = (c === '+' || c === '^' || c === '@') ? c : '';
+  $('adm-rep').value = r.map(function(v){ return v.replace(/^[+^@]/, ''); }).join('\n');
 }
 function spriteKey(v){
   v = String(v).trim(); if (!v) return '';
@@ -583,7 +584,7 @@ $('admin-form').addEventListener('submit', async function(e){
   e.preventDefault();
   var p = viewing; if (!p) return;
   var mode = $('adm-mode').value;
-  var reps = $('adm-rep').value.split(/[\n,]+/).map(function(v){ return spriteKey(String(v).replace(/^\s*[+^]/, '')); })
+  var reps = $('adm-rep').value.split(/[\n,]+/).map(function(v){ return spriteKey(String(v).replace(/^\s*[+^@]/, '')); })
     .filter(Boolean).map(function(v){ return mode + v; });
   $('adm-save').disabled = true; setMsg('adm-msg', 'Saving…');
   try {

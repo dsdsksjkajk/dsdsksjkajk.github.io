@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.5.1
+// @version      1.6.0
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -193,9 +193,9 @@
           }
           p.replaces.forEach((k) => {
             k = String(k).trim();
-            const deco = k.startsWith('+'), dress = k.startsWith('^');   // + decorate, ^ dress up
-            k = spriteKey(deco || dress ? k.slice(1) : k); if (!k) return;
-            const rule = { r, deco, dress };
+            const deco = k.startsWith('+'), dress = k.startsWith('^'), hat = k.startsWith('@');   // + decorate, ^ dress up, @ hat
+            k = spriteKey(deco || dress || hat ? k.slice(1) : k); if (!k) return;
+            const rule = { r, deco, dress, hat };
             if (k.includes('*')) pats.push({ re: patRe(k), rule });
             else if (!next.has(k)) next.set(k, rule);
           });
@@ -291,6 +291,48 @@
       if (p.lights.size < 200) p.lights.set(key, L);
       return L;
     }
+    // Where the head is: the typical width/centre of the solid rows in the top band of the sprite.
+    // (median, so a raised sword or ears sticking out don't throw it off)
+    function headOf(p, x0, y0, w, h) {
+      const key = 'head:' + x0 + ',' + y0 + ',' + w + ',' + h;
+      if (p.boxes.has(key)) return p.boxes.get(key);
+      // longest unbroken run of solid pixels in each row of the top part (a sword next to the head is a separate run)
+      const rows = [], scan = Math.max(4, Math.round(h * 0.5));
+      for (let yy = y0; yy < y0 + scan; yy++) {
+        let best = null, a = -1;
+        for (let xx = x0; xx <= x0 + w; xx++) {
+          const solid = xx < x0 + w && p.a[yy * p.w + xx] > 128;
+          if (solid && a < 0) a = xx;
+          if (!solid && a >= 0) { if (!best || xx - a > best.w) best = { w: xx - a, c: (a + xx) / 2 }; a = -1; }
+        }
+        rows.push(best);
+      }
+      const maxW = rows.reduce((m, r2) => Math.max(m, r2 ? r2.w : 0), 0);
+      let hd = null;
+      if (maxW) {
+        // the head starts at the first row that is reasonably wide (skips sword tips, antennae, hair strands)
+        let i0 = rows.findIndex((r2) => r2 && r2.w >= maxW * 0.35);
+        const band = Math.max(3, Math.round(h * 0.2)), spans = [];
+        for (let i = i0; i < Math.min(rows.length, i0 + band); i++) if (rows[i] && rows[i].w >= maxW * 0.35) spans.push(rows[i]);
+        spans.sort((m, n) => m.w - n.w);
+        const lo = Math.floor(spans.length * 0.4), mid = spans.slice(lo, Math.max(lo + 1, Math.ceil(spans.length * 0.8)));
+        hd = { w: mid.reduce((t, s2) => t + s2.w, 0) / mid.length, cx: mid.reduce((t, s2) => t + s2.c, 0) / mid.length, top: y0 + i0 };
+      }
+      if (p.boxes.size < 500) p.boxes.set(key, hd);
+      return hd;
+    }
+    function drawHat(ctx, src, rule, sx, sy, sw, sh, dx, dy, dw, dh) {
+      const p = pixelsOf(src); if (!p) return;
+      const tb = trimBox(src, sx, sy, sw, sh, 128); if (!tb) return;
+      const hd = headOf(p, Math.round(sx) + tb.x, Math.round(sy) + tb.y, tb.w, tb.h); if (!hd) return;
+      const kx = dw / sw, ky = dh / sh, f = rule.r.frame();
+      const hw = hd.w * 1.3 * Math.abs(kx), hh = f.height * hw / f.width;
+      const cx = dx + (hd.cx - sx) * kx;
+      const bottom = dy + (hd.top - sy + hd.w * 0.38) * ky;   // brim across the forehead, above the eyes
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      orig.call(ctx, f, cx - hw / 2, bottom - hh, hw, hh);
+      ctx.restore();
+    }
     function drawDeco(ctx, src, rule, sx, sy, sw, sh, dx, dy, dw, dh) {
       const kx = dw / sw, ky = dh / sh;
       const p = pixelsOf(src);
@@ -338,6 +380,16 @@
       }
       if (!r || !S.sprites) return orig.apply(this, arguments);
       const n = arguments.length;
+      if (r.hat) {   // hat: the game's sprite, with the art sat on its head
+        const res = orig.apply(this, arguments);
+        const iw2 = src.naturalWidth || src.width, ih2 = src.naturalHeight || src.height;
+        let sx = 0, sy = 0, sw = iw2, sh = ih2, ddx, ddy, ddw, ddh;
+        if (n >= 9) { sx = arguments[1]; sy = arguments[2]; sw = arguments[3]; sh = arguments[4]; ddx = arguments[5]; ddy = arguments[6]; ddw = arguments[7]; ddh = arguments[8]; }
+        else if (n >= 5) { ddx = arguments[1]; ddy = arguments[2]; ddw = arguments[3]; ddh = arguments[4]; }
+        else { ddx = arguments[1]; ddy = arguments[2]; ddw = iw2; ddh = ih2; }
+        try { drawHat(this, src, r, sx, sy, sw, sh, ddx, ddy, ddw, ddh); } catch (e) { /* never break the game */ }
+        return res;
+      }
       if (r.dress) {   // dress up: the game's sprite, with the art laid exactly over its solid area
         const res = orig.apply(this, arguments);
         try {
@@ -779,7 +831,7 @@ input[type=range]{accent-color:var(--accent)}
       const sn = document.createElement('div'); sn.className = 'sn'; sn.textContent = name;
       const sm = document.createElement('small');
       const hit = keys.map((k) => findRep(k)).find(Boolean), on = !!hit;
-      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? (hit.deco ? ' · decorated' : hit.dress ? ' · dressed up' : ' · replaced') : '');
+      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? (hit.deco ? ' · decorated' : hit.dress ? ' · dressed up' : hit.hat ? ' · hat on' : ' · replaced') : '');
       if (on) sm.className = 'on';
       sn.appendChild(sm);
       row.append(tw, im, sn, copyBtn(name));
@@ -791,7 +843,7 @@ input[type=range]{accent-color:var(--accent)}
         const i2 = document.createElement('img'); i2.alt = ''; i2.src = info.url;
         const n2 = document.createElement('div'); n2.className = 'sn'; n2.textContent = k.slice(k.lastIndexOf('/') + 1);
         const h2 = findRep(k);
-        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (h2 ? (h2.deco ? ' · decorated' : h2.dress ? ' · dressed up' : ' · replaced') : '');
+        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (h2 ? (h2.deco ? ' · decorated' : h2.dress ? ' · dressed up' : h2.hat ? ' · hat on' : ' · replaced') : '');
         if (findRep(k)) s2.className = 'on';
         n2.appendChild(s2); r.append(i2, n2, copyBtn(k)); list.appendChild(r);
       });
