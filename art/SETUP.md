@@ -1,11 +1,19 @@
+# Art wall: one-time setup (about 2 minutes)
+
+The art wall reuses the Idle MMO Supabase project, so `config.js` is already filled in and logins are shared.
+
+1. Open your Supabase project -> **SQL Editor -> New query**.
+2. Paste all of `art/setup.sql` and click **Run**. This creates the public `art` storage bucket and the `art_posts` table with its rules.
+3. Commit and push. The page is at https://dsdsksjkajk.github.io/art/
+
 ## Rules the database enforces
 - Anyone can view; only logged-in users can post.
 - PNG, JPG, GIF or WEBP only, 8 MB max per file, 30 posts per user per day.
 - Users can delete their own posts; nobody can edit or delete anyone else's.
 - The poster's username is filled in by the server, so it can't be faked.
 
-## Moderating notes
-Anything public can attract junk. For an to remove a post: Supabase -> **Table Editor -> art_posts**, delete the row, then **Storage -> art**, delete the file in that user's folder (the folder name is the user's id, and the `path` column tells you the exact file).
+## Moderating
+Anything public can attract junk. To remove a post: Supabase -> **Table Editor -> art_posts**, delete the row, then **Storage -> art**, delete the file in that user's folder (the folder name is the user's id, and the `path` column tells you the exact file).
 
 ## Update: descriptions (2 Nov 2026)
 If you set the art wall up before descriptions existed, run `art/add-descriptions.sql` once in the SQL Editor. It adds a description to each post and lets people edit the title and description of their own posts.
@@ -19,7 +27,7 @@ How it works:
 3. Open a post. In the **ADMIN** box, tick **Approved for the FlatMMO script**.
    - Leave "Replaces these game sprites" empty to just show it in the in-game gallery.
    - Or paste sprite names (one per line) to swap those game sprites for this art.
-4. Get sprite names in game: 🎨 → **Sprite finder** → **Copy** next to the sprite you want replaced. The finder groups animation frames, so a name like `images/npcs/goblin*` replaces every goblin frame at once (`*` matches anything). Switch it to **By animation** or **Every frame** if you only want part of one.
+4. Get sprite names in game: 🎨 → **Sprite finder** → **Copy** next to the sprite you want replaced. The finder groups animation frames, so a name like `images/npcs/goblin*` replaces every goblin frame at once (`*` matches anything). Switch it to **By animation** or **Every frame** if you only want part of one. Player gear lives in animation folders, so **By character** gives names like `images/animations/*/head_oxygen_tank*` that cover every animation. Replacement art is fitted to where the original item actually is, so a hat replacement sits on the head.
 5. Players with the script pick up changes within 5 minutes, or straight away if they press **↻ Check now** or reload.
 
 To add another admin: `insert into public.art_admins (user_id) select id from auth.users where email = 'u_<their username, lowercase>@dsdsksjkajk.github.io';`

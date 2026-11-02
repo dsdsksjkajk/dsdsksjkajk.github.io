@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -207,6 +207,28 @@
     const C2D = W.CanvasRenderingContext2D;
     if (!C2D || C2D.prototype.__dsArtHooked) return;
     const proto = C2D.prototype, orig = proto.drawImage;
+    // Visible area of a game image, worked out once per image.
+    const trimCache = new WeakMap();
+    function trimBox(img) {
+      let b = trimCache.get(img);
+      if (b !== undefined) return b;
+      b = null;
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (w && h && w * h <= 1048576) {
+          const c = W.document.createElement('canvas'); c.width = w; c.height = h;
+          const x = c.getContext('2d'); orig.call(x, img, 0, 0);
+          const d = x.getImageData(0, 0, w, h).data;
+          let x0 = w, y0 = h, x1 = -1, y1 = -1;
+          for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+            if (d[(yy * w + xx) * 4 + 3] > 8) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
+          }
+          if (x1 >= 0) b = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, iw: w, ih: h };
+        }
+      } catch (e) { b = null; }   // image from another site: can't read pixels, use the full box
+      trimCache.set(img, b);
+      return b;
+    }
     const Img = W.HTMLImageElement;
     proto.__dsArtHooked = true;
     proto.drawImage = function (src) {
@@ -228,7 +250,11 @@
       if (n >= 9) { dx = arguments[5]; dy = arguments[6]; dw = arguments[7]; dh = arguments[8]; }
       else if (n >= 5) { dx = arguments[1]; dy = arguments[2]; dw = arguments[3]; dh = arguments[4]; }
       else { dx = arguments[1]; dy = arguments[2]; dw = src.naturalWidth || src.width; dh = src.naturalHeight || src.height; }
-      // fit inside the sprite's box, standing on its bottom edge (so characters stay on the ground)
+      if (n < 9) {   // shrink the box to where the original actually has pixels (e.g. just the hat on a head layer)
+        const tb = trimBox(src);
+        if (tb) { const kx = dw / tb.iw, ky = dh / tb.ih; dx += tb.x * kx; dy += tb.y * ky; dw = tb.w * kx; dh = tb.h * ky; }
+      }
+      // fit inside that box, standing on its bottom edge (so characters stay on the ground)
       const sc = Math.min(Math.abs(dw) / f.width, Math.abs(dh) / f.height);
       const w = f.width * sc * Math.sign(dw || 1), h = f.height * sc * Math.sign(dh || 1);
       return orig.call(this, f, dx + (dw - w) / 2, dy + dh - h, w, h);
@@ -559,6 +585,7 @@ input[type=range]{accent-color:var(--accent)}
     'cast|casting|shoot|shooting|jump|swing|chop|mine|mining|fish|fishing|left|right|up|down|front|back|side|' +
     'north|south|east|west|n|s|e|w|l|r|f|b|anim|frame|sheet';
   const ACT_RE = new RegExp('[-_ .]+(' + ACT + ')$', 'i');
+  const ACT_DIR = new RegExp('^(' + ACT + ')$', 'i');
   function groupOf(k, mode) {
     if (mode === 'all') return k;
     const i = k.lastIndexOf('/'), dir = k.slice(0, i + 1), m = /^(.*?)(\.[a-z0-9]+)?$/i.exec(k.slice(i + 1));
@@ -569,8 +596,19 @@ input[type=range]{accent-color:var(--accent)}
       base = base.replace(/[-_ .]*\d+$/, '');                 // frame numbers: goblin_attack_3 -> goblin_attack
       if (mode === 'char') base = base.replace(ACT_RE, '');   // actions: goblin_attack -> goblin
     } while (base && base !== prev);
-    if (!base || base === orig) return k;                       // nothing to group
-    return dir + base + '*';
+    if (!base) base = orig;
+    // FlatMMO keeps each animation in its own folder (images/animations/stand/, .../walk/ ...).
+    // "By character" joins them: images/animations/*/head_oxygen_tank*
+    let dir2 = dir;
+    if (mode === 'char') {
+      const parts = dir.slice(0, -1).split('/');
+      for (let j = 1; j < parts.length; j++) {
+        if (/^anim(ation)?s?$/i.test(parts[j - 1]) || ACT_DIR.test(parts[j])) parts[j] = '*';
+      }
+      dir2 = parts.join('/') + (parts.length && parts[0] !== '' ? '/' : '');
+    }
+    if (base === orig && dir2 === dir) return k;                // nothing to group
+    return dir2 + (base === orig ? orig + (m[2] || '') : base + '*');
   }
   const openGroups = new Set();
   let finderSig = '', thumbTick = 0;
