@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.1.2
+// @version      1.2.0
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -37,7 +37,7 @@
   const DEFAULTS = {
     launcherPos: null,
     jump: false, jumpFreq: 'sometimes',
-    sprites: true,
+    sprites: true, finderGroup: 'char',
   };
   const hasGM = typeof GM_getValue === 'function';
   function loadSettings() {
@@ -117,7 +117,14 @@
   }
   const seen = new Map();          // sprite key -> { url, w, h }  (for the Sprite finder)
   const built = new Map();         // post id -> loaded replacement
-  let reps = new Map();            // sprite key -> replacement
+  let reps = new Map();            // exact sprite key -> replacement
+  let repPats = [];                // [{ re, r }] for names with * in them, e.g. images/npcs/goblin*
+  const patRe = (k) => new RegExp('^' + k.split('*').map((x) => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+  function findRep(k) {
+    const r = reps.get(k); if (r) return r;
+    for (const p of repPats) if (p.re.test(k)) return p.r;
+    return false;
+  }
   let lookup = new WeakMap();      // game image -> replacement | false   (cache, keeps drawing fast)
   let lastSig = '', syncing = false;
   const SP = { state: 'idle', count: 0, sprites: 0, error: '' };
@@ -173,18 +180,22 @@
       const wanted = data.filter((p) => Array.isArray(p.replaces) && p.replaces.length);
       const sig = JSON.stringify(wanted.map((p) => [p.id, p.path, p.replaces]));
       if (sig !== lastSig) {
-        const next = new Map();
+        const next = new Map(), pats = [];
         for (const p of wanted) {   // newest first, so the newest art wins if two claim the same sprite
           let r = built.get(p.id);
           if (!r || r.path !== p.path) {
             try { r = await buildRep(p); r.path = p.path; built.set(p.id, r); } catch (e) { continue; }
           }
-          p.replaces.forEach((k) => { k = spriteKey(k); if (k && !next.has(k)) next.set(k, r); });
+          p.replaces.forEach((k) => {
+            k = spriteKey(k); if (!k) return;
+            if (k.includes('*')) pats.push({ re: patRe(k), r });
+            else if (!next.has(k)) next.set(k, r);
+          });
         }
         for (const [id, r] of built) if (!wanted.some((p) => p.id === id)) { r.close(); built.delete(id); }
-        reps = next; lookup = new WeakMap(); lastSig = sig;
+        reps = next; repPats = pats; lookup = new WeakMap(); lastSig = sig;
       }
-      SP.state = 'ok'; SP.count = built.size; SP.sprites = reps.size; SP.error = '';
+      SP.state = 'ok'; SP.count = built.size; SP.sprites = reps.size + repPats.length; SP.error = '';
     } catch (e) {
       SP.state = 'error'; SP.error = e.message;
     } finally { syncing = false; notify(); }
@@ -206,7 +217,7 @@
           if (!u || !src.complete) return orig.apply(this, arguments);   // not loaded yet: decide later
           const k = /^(data|blob):/.test(u) ? '' : spriteKey(u);
           if (k) noteSeen(k, u, src);
-          r = (k && reps.get(k)) || false;
+          r = k ? findRep(k) : false;
         } else r = false;
         lookup.set(src, r);
       }
@@ -289,6 +300,14 @@ input[type=range]{accent-color:var(--accent)}
 .srow .sn{flex:1;min-width:0;font:500 11.5px/1.35 'JetBrains Mono',ui-monospace,monospace;overflow-wrap:anywhere}
 .srow .sn small{display:block;color:var(--muted);font-family:Inter,system-ui,sans-serif}
 .srow .sn small.on{color:var(--accent)}
+.srow.grp{cursor:pointer}
+.srow.grp:hover .sn{color:var(--accent)}
+.srow .tw{flex:none;width:14px;color:var(--muted);font-size:11px;text-align:center}
+.srow.sub{padding-left:22px}
+.srow.sub img{width:28px;height:28px}
+.ftools{display:flex;gap:8px;align-items:center;margin:8px 0 4px}
+.ftools .search{margin:0;flex:1;min-width:0}
+.ftools select{width:auto;flex:none}
 .ok{color:#7CD992}.bad{color:#FF7B7B}
 
 
@@ -352,8 +371,15 @@ input[type=range]{accent-color:var(--accent)}
     </div>
 
     <div class="body" id="finderv" hidden>
-      <div class="sub">Every sprite the game has drawn since you loaded it. Walk around to find more. Copy a name and paste it into the art wall's admin box to replace that sprite.</div>
-      <input class="search" id="fsearch" placeholder="Search, e.g. npc, house, tree" autocomplete="off">
+      <div class="sub">Sprites the game has drawn since you loaded it, grouped so every animation frame of a character is one row. Copy a name into the art wall's admin box to replace all of them at once. Click a row to see single frames.</div>
+      <div class="ftools">
+        <input class="search" id="fsearch" placeholder="Search, e.g. goblin, house" autocomplete="off">
+        <select id="fgroup" aria-label="Grouping">
+          <option value="char">By character</option>
+          <option value="anim">By animation</option>
+          <option value="all">Every frame</option>
+        </select>
+      </div>
       <div id="flist"></div>
       <div class="note" id="fnote" hidden></div>
     </div>
@@ -517,7 +543,7 @@ input[type=range]{accent-color:var(--accent)}
     if (!S.sprites) st.textContent = 'Off. The game looks normal.';
     else if (SP.state === 'loading') st.textContent = 'Checking the art wall…';
     else if (SP.state === 'error') { st.textContent = "Couldn't reach the art wall (" + SP.error + ').'; st.className = 'sub bad'; }
-    else if (SP.state === 'ok' && SP.sprites) { st.textContent = SP.sprites + ' sprite' + (SP.sprites === 1 ? '' : 's') + ' swapped for festive art.'; st.className = 'sub ok'; }
+    else if (SP.state === 'ok' && SP.sprites) { st.textContent = SP.sprites + ' festive swap' + (SP.sprites === 1 ? '' : 's') + ' active.'; st.className = 'sub ok'; }
     else if (SP.state === 'ok') st.textContent = 'No festive sprites have been assigned yet.';
     else st.textContent = 'Swaps some game sprites for art from the wall.';
   }
@@ -528,32 +554,97 @@ input[type=range]{accent-color:var(--accent)}
     try { if (typeof GM_setClipboard === 'function') { GM_setClipboard(t, 'text'); return Promise.resolve(); } } catch (e) { /* ignore */ }
     return navigator.clipboard.writeText(t);
   }
-  function renderFinder() {
-    const q = $('fsearch').value.trim().toLowerCase();
-    const keys = [...seen.keys()].filter((k) => !q || k.includes(q)).sort();
+  // Words that usually describe an animation or direction, not the character itself.
+  const ACT = 'attack|attacking|atk|hit|hurt|walk|walking|run|running|idle|stand|standing|move|moving|death|die|dying|dead|' +
+    'cast|casting|shoot|shooting|jump|swing|chop|mine|mining|fish|fishing|left|right|up|down|front|back|side|' +
+    'north|south|east|west|n|s|e|w|l|r|f|b|anim|frame|sheet';
+  const ACT_RE = new RegExp('[-_ .]+(' + ACT + ')$', 'i');
+  function groupOf(k, mode) {
+    if (mode === 'all') return k;
+    const i = k.lastIndexOf('/'), dir = k.slice(0, i + 1), m = /^(.*?)(\.[a-z0-9]+)?$/i.exec(k.slice(i + 1));
+    const orig = m[1];
+    let base = orig, prev;
+    do {
+      prev = base;
+      base = base.replace(/[-_ .]*\d+$/, '');                 // frame numbers: goblin_attack_3 -> goblin_attack
+      if (mode === 'char') base = base.replace(ACT_RE, '');   // actions: goblin_attack -> goblin
+    } while (base && base !== prev);
+    if (!base || base === orig) return k;                       // nothing to group
+    return dir + base + '*';
+  }
+  const openGroups = new Set();
+  let finderSig = '', thumbTick = 0;
+  function copyBtn(text) {
+    const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Copy';
+    b.onclick = (e) => {
+      e.stopPropagation();
+      copyText(text).then(() => { b.textContent = 'Copied!'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); }, () => { b.textContent = 'Failed'; });
+    };
+    return b;
+  }
+  function renderFinder(force) {
+    const q = $('fsearch').value.trim().toLowerCase(), mode = S.finderGroup;
+    const sig = seen.size + '|' + q + '|' + mode + '|' + [...openGroups].join(',') + '|' + SP.sprites;
+    if (!force && sig === finderSig) return;   // nothing new: don't redraw (keeps your scroll position)
+    finderSig = sig;
+    const groups = new Map();
+    for (const k of seen.keys()) {
+      const g = groupOf(k, mode);
+      if (q && !g.includes(q) && !k.includes(q)) continue;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(k);
+    }
+    const names = [...groups.keys()].sort();
     const list = $('flist'); list.textContent = '';
-    keys.slice(0, 300).forEach((k) => {
-      const info = seen.get(k);
-      const row = document.createElement('div'); row.className = 'srow';
-      const im = document.createElement('img'); im.src = info.url; im.alt = '';
-      const sn = document.createElement('div'); sn.className = 'sn'; sn.textContent = k;
+    names.slice(0, 300).forEach((g) => {
+      const keys = groups.get(g).sort(), first = seen.get(keys[0]);
+      const many = keys.length > 1, open = many && openGroups.has(g);
+      const name = many ? g : keys[0];   // a lone image gets its exact name, not a pattern
+      const row = document.createElement('div'); row.className = 'srow' + (many ? ' grp' : '');
+      const tw = document.createElement('span'); tw.className = 'tw'; tw.textContent = many ? (open ? '▾' : '▸') : '';
+      const im = document.createElement('img'); im.alt = ''; im.src = first.url;
+      if (many) im.dataset.urls = JSON.stringify(keys.slice(0, 40).map((k) => seen.get(k).url));   // animated preview
+      const sn = document.createElement('div'); sn.className = 'sn'; sn.textContent = name;
       const sm = document.createElement('small');
-      sm.textContent = info.w + '×' + info.h + (reps.has(k) ? ' · replaced' : '');
-      if (reps.has(k)) sm.className = 'on';
+      const on = keys.some((k) => findRep(k));
+      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? ' · replaced' : '');
+      if (on) sm.className = 'on';
       sn.appendChild(sm);
-      const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Copy';
-      b.onclick = () => copyText(k).then(() => { b.textContent = 'Copied!'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); }, () => { b.textContent = 'Failed'; });
-      row.append(im, sn, b); list.appendChild(row);
+      row.append(tw, im, sn, copyBtn(name));
+      if (many) row.onclick = () => { open ? openGroups.delete(g) : openGroups.add(g); renderFinder(true); };
+      list.appendChild(row);
+      if (open) keys.forEach((k) => {
+        const info = seen.get(k);
+        const r = document.createElement('div'); r.className = 'srow sub';
+        const i2 = document.createElement('img'); i2.alt = ''; i2.src = info.url;
+        const n2 = document.createElement('div'); n2.className = 'sn'; n2.textContent = k.slice(k.lastIndexOf('/') + 1);
+        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (findRep(k) ? ' · replaced' : '');
+        if (findRep(k)) s2.className = 'on';
+        n2.appendChild(s2); r.append(i2, n2, copyBtn(k)); list.appendChild(r);
+      });
     });
-    $('fnote').hidden = keys.length > 0 && keys.length <= 300;
-    $('fnote').textContent = !seen.size ? 'Nothing yet. Play for a moment, then check again.' : !keys.length ? 'No match.' : 'Showing 300 of ' + keys.length + '. Search to narrow it down.';
+    $('fnote').hidden = names.length > 0 && names.length <= 300;
+    $('fnote').textContent = !seen.size ? 'Nothing yet. Play for a moment, then check again.' : !names.length ? 'No match.' : 'Showing 300 of ' + names.length + '. Search to narrow it down.';
+  }
+  function animateThumbs() {
+    thumbTick++;
+    $('flist').querySelectorAll('img[data-urls]').forEach((im) => {
+      const u = JSON.parse(im.dataset.urls); im.src = u[thumbTick % u.length];
+    });
   }
   $('finder').onclick = () => {
     $('home').hidden = true; $('finderv').hidden = false; $('back').hidden = false; $('ptitle').textContent = 'Sprite finder';
-    renderFinder(); clearInterval(finderTimer);
-    finderTimer = setInterval(() => { if (!panel.hidden && !$('finderv').hidden && document.activeElement !== host) renderFinder(); }, 3000);
+    renderFinder(true); clearInterval(finderTimer);
+    let n = 0;
+    finderTimer = setInterval(() => {
+      if (panel.hidden || $('finderv').hidden) return;
+      animateThumbs();
+      if (++n % 10 === 0) renderFinder();   // pick up newly seen sprites every few seconds
+    }, 300);
   };
-  $('fsearch').addEventListener('input', renderFinder);
+  $('fsearch').addEventListener('input', () => renderFinder());
+  $('fgroup').value = S.finderGroup;
+  $('fgroup').onchange = () => { S.finderGroup = $('fgroup').value; save(); openGroups.clear(); renderFinder(true); };
 
   /* ---------------- wire up ---------------- */
   bindSwitch('t-sprites', 'sprites', () => { lookup = new WeakMap(); if (S.sprites) syncSprites(); paintSprites(); });
