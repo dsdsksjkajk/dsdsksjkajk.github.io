@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -14,6 +14,9 @@
 // @grant        GM_setClipboard
 // @grant        unsafeWindow
 // @connect      irpmgvoficvjnkqkojxg.supabase.co
+// @connect      self
+// @connect      flatmmo.com
+// @connect      *
 // @run-at       document-start
 // @noframes
 // ==/UserScript==
@@ -207,26 +210,50 @@
     const C2D = W.CanvasRenderingContext2D;
     if (!C2D || C2D.prototype.__dsArtHooked) return;
     const proto = C2D.prototype, orig = proto.drawImage;
-    // Visible area of a game image, worked out once per image.
-    const trimCache = new WeakMap();
-    function trimBox(img) {
-      let b = trimCache.get(img);
+    // Where the original sprite actually has pixels, so the art lands on the item (e.g. just the mask)
+    // instead of filling the whole character box. Pixels are read once per image; boxes are cached per
+    // source rectangle. If the game's images come from another site the browser hides their pixels,
+    // so we fetch a readable copy through the userscript in the background.
+    const pix = new WeakMap();   // img -> { w, h, a } | 'wait' | null
+    function readAlpha(src, w, h) {
+      const c = W.document.createElement('canvas'); c.width = w; c.height = h;
+      const x = c.getContext('2d'); orig.call(x, src, 0, 0);
+      const d = x.getImageData(0, 0, w, h).data, a = new Uint8Array(w * h);
+      for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
+      return { w, h, a, boxes: new Map() };
+    }
+    function pixelsOf(img) {
+      let p = pix.get(img);
+      if (p !== undefined) return p === 'wait' ? null : p;
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h || w * h > 4194304) { pix.set(img, null); return null; }
+      try { p = readAlpha(img, w, h); pix.set(img, p); return p; }
+      catch (e) {   // pixels hidden (image from another site): get a copy we're allowed to read
+        pix.set(img, 'wait');
+        request(img.currentSrc || img.src, 'blob')
+          .then((b) => toBitmap(b))
+          .then((bmp) => { pix.set(img, readAlpha(bmp, w, h)); try { bmp.close(); } catch (er) { /* ignore */ } })
+          .catch(() => pix.set(img, null));
+        return null;
+      }
+    }
+    function trimBox(img, sx, sy, sw, sh) {
+      const p = pixelsOf(img); if (!p) return null;
+      sx = Math.max(0, Math.round(sx)); sy = Math.max(0, Math.round(sy));
+      sw = Math.min(p.w - sx, Math.round(sw)); sh = Math.min(p.h - sy, Math.round(sh));
+      if (sw <= 0 || sh <= 0) return null;
+      const key = sx + ',' + sy + ',' + sw + ',' + sh;
+      let b = p.boxes.get(key);
       if (b !== undefined) return b;
-      b = null;
-      try {
-        const w = img.naturalWidth, h = img.naturalHeight;
-        if (w && h && w * h <= 1048576) {
-          const c = W.document.createElement('canvas'); c.width = w; c.height = h;
-          const x = c.getContext('2d'); orig.call(x, img, 0, 0);
-          const d = x.getImageData(0, 0, w, h).data;
-          let x0 = w, y0 = h, x1 = -1, y1 = -1;
-          for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
-            if (d[(yy * w + xx) * 4 + 3] > 8) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
-          }
-          if (x1 >= 0) b = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, iw: w, ih: h };
+      let x0 = sx + sw, y0 = sy + sh, x1 = -1, y1 = -1;
+      for (let yy = sy; yy < sy + sh; yy++) {
+        const row = yy * p.w;
+        for (let xx = sx; xx < sx + sw; xx++) {
+          if (p.a[row + xx] > 8) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
         }
-      } catch (e) { b = null; }   // image from another site: can't read pixels, use the full box
-      trimCache.set(img, b);
+      }
+      b = x1 < 0 ? null : { x: x0 - sx, y: y0 - sy, w: x1 - x0 + 1, h: y1 - y0 + 1, sw, sh };
+      if (p.boxes.size < 500) p.boxes.set(key, b);
       return b;
     }
     const Img = W.HTMLImageElement;
@@ -250,10 +277,10 @@
       if (n >= 9) { dx = arguments[5]; dy = arguments[6]; dw = arguments[7]; dh = arguments[8]; }
       else if (n >= 5) { dx = arguments[1]; dy = arguments[2]; dw = arguments[3]; dh = arguments[4]; }
       else { dx = arguments[1]; dy = arguments[2]; dw = src.naturalWidth || src.width; dh = src.naturalHeight || src.height; }
-      if (n < 9) {   // shrink the box to where the original actually has pixels (e.g. just the hat on a head layer)
-        const tb = trimBox(src);
-        if (tb) { const kx = dw / tb.iw, ky = dh / tb.ih; dx += tb.x * kx; dy += tb.y * ky; dw = tb.w * kx; dh = tb.h * ky; }
-      }
+      // shrink the box to where the original actually has pixels (e.g. just the mask on a head layer)
+      const iw = src.naturalWidth || src.width, ih = src.naturalHeight || src.height;
+      const tb = n >= 9 ? trimBox(src, arguments[1], arguments[2], arguments[3], arguments[4]) : trimBox(src, 0, 0, iw, ih);
+      if (tb) { const kx = dw / tb.sw, ky = dh / tb.sh; dx += tb.x * kx; dy += tb.y * ky; dw = tb.w * kx; dh = tb.h * ky; }
       // fit inside that box, standing on its bottom edge (so characters stay on the ground)
       const sc = Math.min(Math.abs(dw) / f.width, Math.abs(dh) / f.height);
       const w = f.width * sc * Math.sign(dw || 1), h = f.height * sc * Math.sign(dh || 1);
@@ -289,6 +316,7 @@ button,select,input{font:inherit;color:inherit}
   background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 50px #000a;overflow:hidden}
 .head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
 .head h2{margin:0;flex:1;font:700 15px/1 'JetBrains Mono',ui-monospace,Menlo,monospace}
+.ver{font:500 11px/1 'JetBrains Mono',ui-monospace,monospace;color:var(--muted)}
 .icon{width:28px;height:28px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;font-size:16px;line-height:1;color:var(--muted)}
 .icon:hover{border-color:var(--line);color:var(--text)}
 .body{overflow:auto;padding:6px 14px 14px}
@@ -366,6 +394,7 @@ input[type=range]{accent-color:var(--accent)}
     <div class="head">
       <button class="icon" id="back" hidden aria-label="Back">←</button>
       <h2 id="ptitle">Art panel</h2>
+      <span class="ver" id="ver"></span>
       <button class="icon" id="close" aria-label="Close">✕</button>
     </div>
 
@@ -477,6 +506,7 @@ input[type=range]{accent-color:var(--accent)}
     if (!$('box').hidden) $('box').hidden = true; else if (!panel.hidden) closePanel();
   }, true);
 
+  try { $('ver').textContent = 'v' + GM_info.script.version; } catch (e) { /* not in Tampermonkey */ }
   function showHome() { $('home').hidden = false; $('gallery').hidden = true; $('finderv').hidden = true; $('back').hidden = true; $('ptitle').textContent = 'Art panel'; clearInterval(finderTimer); }
   let finderTimer = null;
   $('back').onclick = showHome;
