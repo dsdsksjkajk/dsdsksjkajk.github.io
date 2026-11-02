@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.5.0
+// @version      1.5.1
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -346,12 +346,22 @@
           if (n >= 9) { sx = arguments[1]; sy = arguments[2]; sw = arguments[3]; sh = arguments[4]; ddx = arguments[5]; ddy = arguments[6]; ddw = arguments[7]; ddh = arguments[8]; }
           else if (n >= 5) { ddx = arguments[1]; ddy = arguments[2]; ddw = arguments[3]; ddh = arguments[4]; }
           else { ddx = arguments[1]; ddy = arguments[2]; ddw = iw1; ddh = ih1; }
-          const tb = trimBox(src, sx, sy, sw, sh, 128);   // solid pixels only, ignores soft shadows
-          if (tb) {
-            const kx = ddw / tb.sw, ky = ddh / tb.sh;
+          const f = r.r.frame();
+          if (f.width === iw1 && f.height === ih1) {
+            // art made at exactly the game image's size (e.g. a whole map): maps 1:1, even when the
+            // game only draws part of the image (the bit the camera can see)
+            const kx = ddw / sw, ky = ddh / sh;
             this.save(); this.imageSmoothingEnabled = false;
-            orig.call(this, r.r.frame(), ddx + tb.x * kx, ddy + tb.y * ky, tb.w * kx, tb.h * ky);
+            orig.call(this, f, sx, sy, sw, sh, ddx, ddy, ddw, ddh);
             this.restore();
+          } else {
+            const tb = trimBox(src, sx, sy, sw, sh, 128);   // solid pixels only, ignores soft shadows
+            if (tb) {
+              const kx = ddw / tb.sw, ky = ddh / tb.sh;
+              this.save(); this.imageSmoothingEnabled = false;
+              orig.call(this, f, ddx + tb.x * kx, ddy + tb.y * ky, tb.w * kx, tb.h * ky);
+              this.restore();
+            }
           }
         } catch (e) { /* never break the game */ }
         return res;
