@@ -41,7 +41,8 @@ begin
   if not exists (select 1 from storage.objects where bucket_id = 'art' and name = new.path) then
     raise exception 'Upload the file first';
   end if;
-  if (select count(*) from public.art_posts
+  if not public.is_art_admin()   -- admins have no daily limit
+     and (select count(*) from public.art_posts
       where user_id = auth.uid() and created_at > now() - interval '1 day') >= 30 then
     raise exception 'Daily upload limit reached (30). Try again tomorrow.';
   end if;
