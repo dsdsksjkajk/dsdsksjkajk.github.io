@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.4.1
+// @version      1.5.0
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -192,9 +192,10 @@
             try { r = await buildRep(p); r.path = p.path; built.set(p.id, r); } catch (e) { continue; }
           }
           p.replaces.forEach((k) => {
-            k = String(k).trim(); const deco = k.startsWith('+');
-            k = spriteKey(deco ? k.slice(1) : k); if (!k) return;
-            const rule = { r, deco };
+            k = String(k).trim();
+            const deco = k.startsWith('+'), dress = k.startsWith('^');   // + decorate, ^ dress up
+            k = spriteKey(deco || dress ? k.slice(1) : k); if (!k) return;
+            const rule = { r, deco, dress };
             if (k.includes('*')) pats.push({ re: patRe(k), rule });
             else if (!next.has(k)) next.set(k, rule);
           });
@@ -245,19 +246,20 @@
         return null;
       }
     }
-    function trimBox(img, sx, sy, sw, sh) {
+    function trimBox(img, sx, sy, sw, sh, minA) {
+      minA = minA || 8;
       const p = pixelsOf(img); if (!p) return null;
       sx = Math.max(0, Math.round(sx)); sy = Math.max(0, Math.round(sy));
       sw = Math.min(p.w - sx, Math.round(sw)); sh = Math.min(p.h - sy, Math.round(sh));
       if (sw <= 0 || sh <= 0) return null;
-      const key = sx + ',' + sy + ',' + sw + ',' + sh;
+      const key = sx + ',' + sy + ',' + sw + ',' + sh + ',' + minA;
       let b = p.boxes.get(key);
       if (b !== undefined) return b;
       let x0 = sx + sw, y0 = sy + sh, x1 = -1, y1 = -1;
       for (let yy = sy; yy < sy + sh; yy++) {
         const row = yy * p.w;
         for (let xx = sx; xx < sx + sw; xx++) {
-          if (p.a[row + xx] > 8) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
+          if (p.a[row + xx] > minA) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
         }
       }
       b = x1 < 0 ? null : { x: x0 - sx, y: y0 - sy, w: x1 - x0 + 1, h: y1 - y0 + 1, sw, sh };
@@ -330,12 +332,30 @@
           if (k) noteSeen(k, u, src);
           r = k ? findRep(k) : false;
           // a sprite split in layers (pine_tree1_upper / _lower): only the bottom part gets the presents
-          if (r && r.deco) r = { r: r.r, deco: true, noArt: /(^|[-_ ./])(upper|top|canopy|crown|leaves)([-_ .\d]|$)/i.test(k.slice(k.lastIndexOf('/') + 1)) };
+          if (r && r.deco) r = { r: r.r, deco: true, dress: false, noArt: /(^|[-_ ./])(upper|top|canopy|crown|leaves)([-_ .\d]|$)/i.test(k.slice(k.lastIndexOf('/') + 1)) };
         } else r = false;
         lookup.set(src, r);
       }
       if (!r || !S.sprites) return orig.apply(this, arguments);
       const n = arguments.length;
+      if (r.dress) {   // dress up: the game's sprite, with the art laid exactly over its solid area
+        const res = orig.apply(this, arguments);
+        try {
+          const iw1 = src.naturalWidth || src.width, ih1 = src.naturalHeight || src.height;
+          let sx = 0, sy = 0, sw = iw1, sh = ih1, ddx, ddy, ddw, ddh;
+          if (n >= 9) { sx = arguments[1]; sy = arguments[2]; sw = arguments[3]; sh = arguments[4]; ddx = arguments[5]; ddy = arguments[6]; ddw = arguments[7]; ddh = arguments[8]; }
+          else if (n >= 5) { ddx = arguments[1]; ddy = arguments[2]; ddw = arguments[3]; ddh = arguments[4]; }
+          else { ddx = arguments[1]; ddy = arguments[2]; ddw = iw1; ddh = ih1; }
+          const tb = trimBox(src, sx, sy, sw, sh, 128);   // solid pixels only, ignores soft shadows
+          if (tb) {
+            const kx = ddw / tb.sw, ky = ddh / tb.sh;
+            this.save(); this.imageSmoothingEnabled = false;
+            orig.call(this, r.r.frame(), ddx + tb.x * kx, ddy + tb.y * ky, tb.w * kx, tb.h * ky);
+            this.restore();
+          }
+        } catch (e) { /* never break the game */ }
+        return res;
+      }
       if (r.deco) {
         const res = orig.apply(this, arguments);   // the game's own sprite, untouched
         const iw0 = src.naturalWidth || src.width, ih0 = src.naturalHeight || src.height;
@@ -749,7 +769,7 @@ input[type=range]{accent-color:var(--accent)}
       const sn = document.createElement('div'); sn.className = 'sn'; sn.textContent = name;
       const sm = document.createElement('small');
       const hit = keys.map((k) => findRep(k)).find(Boolean), on = !!hit;
-      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? (hit.deco ? ' · decorated' : ' · replaced') : '');
+      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? (hit.deco ? ' · decorated' : hit.dress ? ' · dressed up' : ' · replaced') : '');
       if (on) sm.className = 'on';
       sn.appendChild(sm);
       row.append(tw, im, sn, copyBtn(name));
@@ -761,7 +781,7 @@ input[type=range]{accent-color:var(--accent)}
         const i2 = document.createElement('img'); i2.alt = ''; i2.src = info.url;
         const n2 = document.createElement('div'); n2.className = 'sn'; n2.textContent = k.slice(k.lastIndexOf('/') + 1);
         const h2 = findRep(k);
-        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (h2 ? (h2.deco ? ' · decorated' : ' · replaced') : '');
+        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (h2 ? (h2.deco ? ' · decorated' : h2.dress ? ' · dressed up' : ' · replaced') : '');
         if (findRep(k)) s2.className = 'on';
         n2.appendChild(s2); r.append(i2, n2, copyBtn(k)); list.appendChild(r);
       });
