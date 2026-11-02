@@ -119,6 +119,16 @@ dialog::backdrop{background:rgba(5,6,8,.82);backdrop-filter:blur(3px)}
 #view .edit{display:flex;flex-direction:column;gap:8px}
 textarea.field{resize:vertical;min-height:70px;line-height:1.5}
 .chars{font:500 11px/1 'JetBrains Mono',monospace;color:var(--muted);text-align:right;margin-top:4px}
+.ingame{position:absolute;top:8px;right:8px;font:700 10px/1 'JetBrains Mono',monospace;background:var(--accent);
+  color:#16120A;padding:4px 6px;border-radius:4px}
+.gal-tools{display:flex;align-items:center;gap:10px}
+.gal-tools select{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-size:13px;color:var(--text)}
+.admin{border:1px dashed var(--accent);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.admin .ttl{font:700 11px/1 'JetBrains Mono',monospace;color:var(--accent);letter-spacing:.05em}
+.admin label{font-size:13px;color:var(--muted)}
+.admin .chk{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px}
+.admin .chk input{width:18px;height:18px;accent-color:var(--accent)}
+.admin .hintx{font-size:12px;color:var(--muted);margin:0}
 .card .d{padding:0 11px 10px;margin-top:-4px;font-size:12.5px;line-height:1.45;color:var(--muted);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
@@ -127,6 +137,12 @@ textarea.field{resize:vertical;min-height:70px;line-height:1.5}
 .btn.danger:hover{border-color:var(--bad);color:var(--bad)}
 
 footer{margin-top:70px;color:var(--muted);font-size:13px}
+.mod{margin-top:64px;padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.mod p{margin:10px 0;color:var(--muted);font-size:14.5px}
+.mod b{color:var(--text);font-weight:600}
+.mod ol{margin:0;padding-left:20px;color:var(--muted);font-size:14.5px;display:grid;gap:8px}
+.mod ol a:not(.btn){color:var(--accent)}
+.mod .btn{padding:6px 12px;vertical-align:middle}
 
 @media (max-width:560px){
   .top{margin-bottom:6vh}
@@ -187,11 +203,28 @@ footer{margin-top:70px;color:var(--muted);font-size:13px}
 
   <div class="gal-head">
     <h2 class="label">Latest</h2>
-    <span class="count" id="count"></span>
+    <div class="gal-tools">
+      <select id="filter" hidden aria-label="Filter (admin)">
+        <option value="">All art</option>
+        <option value="true">In game</option>
+        <option value="false">Waiting for approval</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
   </div>
   <div class="grid" id="grid"></div>
   <p class="empty" id="empty" hidden>Nothing here yet. Be the first to post something.</p>
   <div class="more"><button class="btn" id="more" type="button" hidden>Load more</button></div>
+
+  <section class="mod">
+    <h2 class="label">See the art while you play FlatMMO</h2>
+    <p>Get the <b>FlatMMO Art Panel</b>: festive versions of NPCs and buildings drawn by players, plus a 🎨 button to browse approved art, pin a little art frame on screen, and (if you dare) turn on a 🎃 jumpscare.</p>
+    <ol>
+      <li>Install the <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> browser extension.</li>
+      <li>Click <a class="btn solid" href="flatmmo-art.user.js">Install the art panel</a> and press <b>Install</b> in the tab that opens.</li>
+      <li>Open FlatMMO and click the 🎨 button in the bottom-left corner.</li>
+    </ol>
+  </section>
 
   <footer>Logins are shared with Idle MMO, so if you have a game account, use that.</footer>
 </div>
@@ -231,6 +264,16 @@ footer{margin-top:70px;color:var(--muted);font-size:13px}
       </div>
     </div>
     <p class="desc" id="view-desc" hidden></p>
+    <form class="admin" id="admin-form" hidden>
+      <div class="ttl">ADMIN</div>
+      <label class="chk"><input type="checkbox" id="adm-ok"> Approved for the FlatMMO script</label>
+      <label>Replaces these game sprites <span class="mono">(optional, one per line)</span>
+        <textarea class="field" id="adm-rep" rows="3" placeholder="e.g. images/npcs/chef.png"></textarea>
+      </label>
+      <p class="hintx">Get sprite names from the in-game art panel → Sprite finder → Copy. Leave empty to only show it in the gallery and art frame.</p>
+      <div class="row"><button class="btn solid" id="adm-save" type="submit">Save</button></div>
+      <p class="msg" id="adm-msg" role="status"></p>
+    </form>
     <form class="edit" id="edit-form" hidden>
       <input class="field" id="edit-title" maxlength="80" autocomplete="off" placeholder="Untitled" aria-label="Title">
       <textarea class="field" id="edit-desc" maxlength="1000" rows="4" placeholder="Description" aria-label="Description"></textarea>
@@ -297,6 +340,7 @@ var S = {
     if (/payload too large|exceeded the maximum/.test(m)) return 'That file is too big (8 MB max).';
     if (/mime type|invalid_mime/.test(m)) return 'Only PNG, JPG, GIF or WEBP files.';
     if (/relation .*art_posts.* does not exist|bucket not found/.test(m)) return 'The art wall is not set up yet (see art/SETUP.md).';
+    if (/art_admin_set|is_art_admin|approved/.test(m) && /(could not find|does not exist)/.test(m)) return 'Admin features are not switched on yet: run art/add-admin.sql in Supabase.';
     if (/description/.test(m) && /column/.test(m)) return 'Descriptions are not switched on yet: run art/add-descriptions.sql in Supabase.';
     return e.message;
   }
@@ -306,7 +350,17 @@ var S = {
 function renderAcct(){
   var on = !!S.refresh && !!S.user;
   $('who').hidden = !on; $('logout-btn').hidden = !on; $('login-btn').hidden = on;
-  $('who-name').textContent = S.user || '';
+  $('who-name').textContent = (S.user || '') + (isAdmin ? ' (admin)' : '');
+  $('filter').hidden = !isAdmin;
+}
+var isAdmin = false;
+async function checkAdmin(){
+  isAdmin = false;
+  if (S.refresh) {
+    try { await S.ensure(); isAdmin = (await S.http('/rest/v1/rpc/is_art_admin', { method:'POST', token:S.token, body:{} })) === true; }
+    catch(e){ isAdmin = false; }
+  }
+  renderAcct();
 }
 var mode = 'login';
 function setMode(m){
@@ -325,7 +379,7 @@ $('login-btn').onclick = function(){ openAuth(); };
 $('auth-close').onclick = function(){ $('auth').close(); };
 $('logout-btn').onclick = async function(){
   try { if (S.token) await S.http('/auth/v1/logout', { method:'POST', token:S.token }); } catch(e){}
-  S.clear(); renderAcct();
+  S.clear(); isAdmin = false; renderAcct();
 };
 $('auth-form').addEventListener('submit', async function(e){
   e.preventDefault();
@@ -341,7 +395,7 @@ $('auth-form').addEventListener('submit', async function(e){
     } else {
       sess = await S.http('/auth/v1/token?grant_type=password', { method:'POST', body:{ email:S.fakeEmail(u), password:p } });
     }
-    S.user = u; S.store(sess); renderAcct();
+    S.user = u; S.store(sess); renderAcct(); checkAdmin();
     $('p').value = ''; $('auth').close();
     if (afterLogin) { var f = afterLogin; afterLogin = null; f(); }
   } catch(err){ setMsg('auth-msg', S.friendly(err), 'bad'); }
@@ -443,6 +497,7 @@ function card(p){
   if (p.width <= 256 && p.height <= 256) img.style.imageRendering = 'pixelated';
   w.appendChild(img);
   if (p.mime === 'image/gif') { var g = document.createElement('span'); g.className = 'gif'; g.textContent = 'GIF'; w.appendChild(g); }
+  if (p.approved) { var ig = document.createElement('span'); ig.className = 'ingame'; ig.textContent = 'IN GAME'; ig.title = 'Approved for the FlatMMO art panel'; w.appendChild(ig); }
   var m = document.createElement('div'); m.className = 'meta';
   var t = document.createElement('span'); t.className = 't'; t.textContent = p.title || 'Untitled';
   var by = document.createElement('span'); by.className = 'by'; by.textContent = p.username;
@@ -456,7 +511,7 @@ async function load(){
   $('more').disabled = true;
   try {
     var r;
-    try { r = await fetch(BASE + '/rest/v1/art_posts?select=*&order=created_at.desc,id.desc&limit=' + PAGE + '&offset=' + offset,
+    try { r = await fetch(BASE + '/rest/v1/art_posts?select=*' + ($('filter').value ? '&approved=eq.' + $('filter').value : '') + '&order=created_at.desc,id.desc&limit=' + PAGE + '&offset=' + offset,
       { headers:{ apikey:C.anonKey, Authorization:'Bearer ' + C.anonKey, Prefer:'count=exact' } }); }
     catch(e){ throw new Error("Can't reach the server. Check your connection."); }
     var rows = await r.json();
@@ -475,6 +530,11 @@ async function load(){
   } finally { $('more').disabled = false; }
 }
 $('more').onclick = load;
+$('filter').onchange = function(){
+  offset = 0; total = 0; byId = {}; $('grid').textContent = ''; $('empty').hidden = true;
+  $('empty').textContent = this.value === 'false' ? 'Nothing waiting for approval.' : 'Nothing here yet. Be the first to post something.';
+  load();
+};
 
 /* ---------- viewer ---------- */
 var viewing = null;
@@ -491,10 +551,35 @@ $('grid').addEventListener('click', function(e){
   var mine = !!(S.uid && S.uid === p.user_id);
   $('view-del').hidden = !mine; $('view-edit').hidden = !mine;
   showDesc(p); $('edit-form').hidden = true;
+  $('admin-form').hidden = !isAdmin;
+  if (isAdmin) { $('adm-ok').checked = !!p.approved; $('adm-rep').value = (p.replaces || []).join('\n'); setMsg('adm-msg', ''); }
   $('view').showModal();
 });
 function showDesc(p){ $('view-desc').textContent = p.description || ''; $('view-desc').hidden = !p.description; }
 $('view-x').onclick = function(){ $('view').close(); };
+function spriteKey(v){
+  v = String(v).trim(); if (!v) return '';
+  try { if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) v = new URL(v).pathname; } catch(e){}
+  v = v.split(/[?#]/)[0].replace(/^\/+/, '');
+  try { v = decodeURIComponent(v); } catch(e){}
+  return v;
+}
+$('admin-form').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var p = viewing; if (!p) return;
+  var reps = $('adm-rep').value.split(/[\n,]+/).map(spriteKey).filter(Boolean);
+  $('adm-save').disabled = true; setMsg('adm-msg', 'Saving…');
+  try {
+    await S.ensure();
+    var r = await S.http('/rest/v1/rpc/art_admin_set', { method:'POST', token:S.token,
+      body:{ p_id:p.id, p_approved:$('adm-ok').checked, p_replaces:reps } });
+    p.approved = r.approved; p.replaces = r.replaces;
+    $('adm-rep').value = (p.replaces || []).join('\n');
+    var old = document.querySelector('.card[data-id="' + p.id + '"]'); if (old) old.replaceWith(card(p));
+    setMsg('adm-msg', p.approved ? 'Saved. Players will see it within a few minutes.' : 'Saved. Not shown in game.', 'good');
+  } catch(err){ setMsg('adm-msg', S.friendly(err), 'bad'); }
+  finally { $('adm-save').disabled = false; }
+});
 $('view-edit').onclick = function(){
   var p = viewing; if (!p) return;
   $('edit-title').value = p.title || ''; $('edit-desc').value = p.description || '';
@@ -545,6 +630,7 @@ $('view-del').onclick = async function(){
     } catch(e){ if (e.status === 401) S.clear(); }
   }
   renderAcct();
+  checkAdmin();
 })();
 load();
 
