@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.1.0
-// @description  Festive sprites, art from the dsdsksjkajk Art wall, a floating art frame and an optional pumpkin jumpscare for FlatMMO. Cosmetic only: it never touches gameplay.
+// @version      1.1.2
+// @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
 // @downloadURL  https://dsdsksjkajk.github.io/art/flatmmo-art.user.js
@@ -31,14 +31,12 @@
   const PAGE = 24;
   // jumpscare gap, in seconds: [min, max]
   const FREQ = { rare: [900, 2400], sometimes: [240, 720], often: [45, 150] };
-  const FRAME_W = { s: 150, m: 220, l: 320 };
   const SYNC_EVERY = 5 * 60 * 1000;   // re-check the wall for newly approved art while playing
 
   /* ---------------- settings ---------------- */
   const DEFAULTS = {
-    frame: false, frameSize: 'm', frameEvery: 60, framePos: null,
     launcherPos: null,
-    jump: false, jumpFreq: 'sometimes', jumpSound: true, jumpVol: 0.6,
+    jump: false, jumpFreq: 'sometimes',
     sprites: true,
   };
   const hasGM = typeof GM_getValue === 'function';
@@ -293,12 +291,6 @@ input[type=range]{accent-color:var(--accent)}
 .srow .sn small.on{color:var(--accent)}
 .ok{color:#7CD992}.bad{color:#FF7B7B}
 
-.frame{position:fixed;right:16px;top:80px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;
-  box-shadow:0 10px 30px #0009;touch-action:none}
-.frame .bar{display:flex;align-items:center;gap:6px;cursor:grab;padding:0 2px 5px;color:var(--muted);font-size:11.5px}
-.frame .bar span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.frame .bar .icon{width:20px;height:20px;font-size:12px;border-radius:5px}
-.frame img{display:block;width:100%;height:auto;max-height:60vh;object-fit:contain;border-radius:7px;background:var(--panel2);cursor:zoom-in}
 
 .box{position:fixed;inset:0;background:rgba(5,6,8,.85);display:flex;align-items:center;justify-content:center;padding:16px}
 .box .card{max-width:min(900px,100%);max-height:100%;display:flex;flex-direction:column;background:#0A0B0D;border:1px solid var(--line);border-radius:14px;overflow:hidden}
@@ -343,20 +335,7 @@ input[type=range]{accent-color:var(--accent)}
           <div><div class="name">🎄 Festive sprites</div><div class="sub" id="sp-status">Swaps some game sprites for art from the wall.</div></div>
           <button class="sw" id="t-sprites" role="switch" aria-label="Festive sprites"></button>
         </div>
-        <div class="links"><button class="btn" id="sp-sync">↻ Check for new art</button><button class="btn" id="finder">🔍 Sprite finder</button></div>
-      </div>
-
-      <div class="sec">
-        <div class="row">
-          <div><div class="name">Art frame</div><div class="sub">A little picture frame on screen showing approved art from the wall.</div></div>
-          <button class="sw" id="t-frame" role="switch" aria-label="Art frame"></button>
-        </div>
-        <div class="opts" id="o-frame">
-          <span>Size</span>
-          <select id="frameSize"><option value="s">Small</option><option value="m">Medium</option><option value="l">Large</option></select>
-          <span>Change every</span>
-          <select id="frameEvery"><option value="20">20 seconds</option><option value="60">1 minute</option><option value="300">5 minutes</option><option value="0">Never (click ↻)</option></select>
-        </div>
+        <div class="links"><button class="btn" id="sp-sync">↻ Check now</button><button class="btn" id="finder">🔍 Sprite finder</button></div>
       </div>
 
       <div class="sec">
@@ -367,10 +346,6 @@ input[type=range]{accent-color:var(--accent)}
         <div class="opts" id="o-jump">
           <span>How often</span>
           <select id="jumpFreq"><option value="rare">Rarely (15-40 min)</option><option value="sometimes">Sometimes (4-12 min)</option><option value="often">Often (1-2 min)</option></select>
-          <span>Scream</span>
-          <select id="jumpSound"><option value="1">On</option><option value="0">Off</option></select>
-          <span>Volume</span>
-          <input type="range" id="jumpVol" min="0" max="1" step="0.05">
         </div>
         <div class="links"><button class="btn" id="test">Test it now</button></div>
       </div>
@@ -388,14 +363,6 @@ input[type=range]{accent-color:var(--accent)}
       <div class="note" id="gnote">Loading…</div>
       <button class="btn wide" id="more" hidden>Load more</button>
     </div>
-  </div>
-
-  <div class="frame" id="frame" hidden>
-    <div class="bar" id="fbar"><span id="ftitle">Art</span>
-      <button class="icon" id="fnext" title="Next" aria-label="Next art">↻</button>
-      <button class="icon" id="fclose" title="Hide frame" aria-label="Hide frame">✕</button>
-    </div>
-    <img id="fimg" alt="">
   </div>
 
   <div class="box" id="box" hidden>
@@ -436,7 +403,7 @@ input[type=range]{accent-color:var(--accent)}
   }
   function restore(el, key) { if (S[key]) requestAnimationFrame(() => place(el, S[key].x, S[key].y)); }
   window.addEventListener('resize', () => {
-    [['launch', 'launcherPos'], ['frame', 'framePos']].forEach(([id, k]) => { const el = $(id); if (S[k] && !el.hidden) place(el, S[k].x, S[k].y); });
+    [['launch', 'launcherPos']].forEach(([id, k]) => { const el = $(id); if (S[k] && !el.hidden) place(el, S[k].x, S[k].y); });
   });
 
   /* ---------------- panel ---------------- */
@@ -473,7 +440,7 @@ input[type=range]{accent-color:var(--accent)}
     const el = $(id); el.value = String(cast === Boolean ? (S[key] ? 1 : 0) : S[key]);
     el.onchange = () => { S[key] = cast === Boolean ? el.value === '1' : cast(el.value); save(); onChange && onChange(); };
   }
-  const paintOpts = () => { $('o-frame').style.opacity = S.frame ? 1 : .45; $('o-jump').style.opacity = S.jump ? 1 : .45; };
+  const paintOpts = () => { $('o-jump').style.opacity = S.jump ? 1 : .45; };
 
   /* ---------------- gallery ---------------- */
   let gOffset = 0, gLoaded = false;
@@ -520,75 +487,8 @@ input[type=range]{accent-color:var(--accent)}
   $('bx').onclick = () => { $('box').hidden = true; };
   $('box').addEventListener('click', (e) => { if (e.target === $('box')) $('box').hidden = true; });
 
-  /* ---------------- floating frame ---------------- */
-  let pool = [], poolAt = 0, framePost = null, frameTimer = null, lastIdx = -1;
-  async function refreshPool() {
-    if (pool.length && Date.now() - poolAt < 10 * 60 * 1000) return;
-    try { const { data } = await listArt(0, 60); pool = data; poolAt = Date.now(); } catch (e) { /* keep old pool */ }
-  }
-  async function nextFrame() {
-    await refreshPool();
-    if (!pool.length) { $('ftitle').textContent = 'No art yet'; $('fimg').hidden = true; return; }
-    let i = Math.floor(Math.random() * pool.length);
-    if (pool.length > 1 && i === lastIdx) i = (i + 1) % pool.length;
-    lastIdx = i; framePost = pool[i];
-    const img = $('fimg'); img.hidden = false; img.alt = framePost.title || 'Untitled';
-    img.style.imageRendering = isPixel(framePost) ? 'pixelated' : 'auto';
-    setImg(img, framePost.path);
-    $('ftitle').textContent = (framePost.title || 'Untitled') + ' · ' + framePost.username;
-  }
-  function applyFrame() {
-    clearInterval(frameTimer);
-    const f = $('frame');
-    f.style.width = FRAME_W[S.frameSize] + 'px';
-    f.hidden = !S.frame;
-    if (!S.frame) return;
-    restore(f, 'framePos');
-    if (!framePost) nextFrame();
-    if (S.frameEvery > 0) frameTimer = setInterval(() => { if (!document.hidden) nextFrame(); }, S.frameEvery * 1000);
-  }
-  draggable($('frame'), $('fbar'), 'framePos');
-  $('fnext').onclick = nextFrame;
-  $('fclose').onclick = () => { S.frame = false; save(); $('t-frame').setAttribute('aria-checked', 'false'); paintOpts(); applyFrame(); };
-  $('fimg').onclick = () => framePost && openBox(framePost);
-
   /* ---------------- pumpkin jumpscare ---------------- */
-  let audio = null, scareTimer = null;
-  function unlockAudio() {
-    try {
-      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-      if (audio.state === 'suspended') audio.resume();
-    } catch (e) { /* no audio */ }
-  }
-  // Browsers only allow sound after the player has clicked/pressed something on the page.
-  window.addEventListener('pointerdown', unlockAudio, true);
-  window.addEventListener('keydown', unlockAudio, true);
-
-  function scream() {
-    if (!S.jumpSound || !audio || audio.state !== 'running' || S.jumpVol <= 0) return;
-    const t = audio.currentTime, vol = Math.min(1, S.jumpVol) * 0.5;
-    const master = audio.createGain(); master.connect(audio.destination);
-    master.gain.setValueAtTime(0.0001, t);
-    master.gain.exponentialRampToValueAtTime(vol, t + 0.02);
-    master.gain.setValueAtTime(vol, t + 0.45);
-    master.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-    // shriek: two detuned saws sliding down, with wobble
-    [0, 23].forEach((det) => {
-      const o = audio.createOscillator(); o.type = 'sawtooth'; o.detune.value = det * 10;
-      o.frequency.setValueAtTime(1150, t); o.frequency.exponentialRampToValueAtTime(260, t + 0.85);
-      const lfo = audio.createOscillator(), lg = audio.createGain();
-      lfo.frequency.value = 28; lg.gain.value = 60; lfo.connect(lg); lg.connect(o.frequency);
-      const g = audio.createGain(); g.gain.value = 0.35;
-      o.connect(g); g.connect(master); o.start(t); lfo.start(t); o.stop(t + 0.95); lfo.stop(t + 0.95);
-    });
-    // noisy hit
-    const n = audio.createBuffer(1, audio.sampleRate * 0.5, audio.sampleRate), d = n.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-    const src = audio.createBufferSource(); src.buffer = n;
-    const bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
-    const ng = audio.createGain(); ng.gain.value = 0.6;
-    src.connect(bp); bp.connect(ng); ng.connect(master); src.start(t);
-  }
+  let scareTimer = null;
   function scare() {
     const el = document.createElement('div');
     el.className = 'scare ui';
@@ -597,7 +497,6 @@ input[type=range]{accent-color:var(--accent)}
     el.addEventListener('click', done);
     el.addEventListener('animationend', (e) => { if (e.animationName === 'fade') done(); });
     root.appendChild(el);
-    scream();
     setTimeout(done, 2500);
   }
   function scheduleScare() {
@@ -609,7 +508,7 @@ input[type=range]{accent-color:var(--accent)}
       scheduleScare();
     }, (a + Math.random() * (b - a)) * 1000);
   }
-  $('test').onclick = () => { unlockAudio(); closePanel(); setTimeout(scare, 150); };
+  $('test').onclick = () => { closePanel(); setTimeout(scare, 150); };
 
   /* ---------------- festive sprites UI ---------------- */
   function paintSprites() {
@@ -658,17 +557,10 @@ input[type=range]{accent-color:var(--accent)}
 
   /* ---------------- wire up ---------------- */
   bindSwitch('t-sprites', 'sprites', () => { lookup = new WeakMap(); if (S.sprites) syncSprites(); paintSprites(); });
-  bindSwitch('t-frame', 'frame', () => { paintOpts(); applyFrame(); });
   bindSwitch('t-jump', 'jump', () => { paintOpts(); scheduleScare(); });
-  bindSelect('frameSize', 'frameSize', String, applyFrame);
-  bindSelect('frameEvery', 'frameEvery', Number, applyFrame);
   bindSelect('jumpFreq', 'jumpFreq', String, scheduleScare);
-  bindSelect('jumpSound', 'jumpSound', Boolean);
-  $('jumpVol').value = S.jumpVol;
-  $('jumpVol').oninput = () => { S.jumpVol = +$('jumpVol').value; save(); };
   paintOpts();
   paintSprites();
-  applyFrame();
   scheduleScare();
   }  // end startUI
 
