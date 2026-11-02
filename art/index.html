@@ -549,7 +549,8 @@ $('grid').addEventListener('click', function(e){
   $('view-meta').textContent = 'by ' + p.username + ' · ' + ago(p.created_at) + (p.width ? ' · ' + p.width + '×' + p.height : '');
   $('view-open').href = url;
   var mine = !!(S.uid && S.uid === p.user_id);
-  $('view-del').hidden = !mine; $('view-edit').hidden = !mine;
+  $('view-del').hidden = !(mine || isAdmin); $('view-edit').hidden = !mine;
+  $('view-del').textContent = (!mine && isAdmin) ? 'Delete (admin)' : 'Delete';
   showDesc(p); $('edit-form').hidden = true;
   $('admin-form').hidden = !isAdmin;
   if (isAdmin) { $('adm-ok').checked = !!p.approved; $('adm-rep').value = (p.replaces || []).join('\n'); setMsg('adm-msg', ''); }
@@ -605,12 +606,16 @@ $('edit-form').addEventListener('submit', async function(e){
 $('view').addEventListener('click', function(e){ if (e.target === this) this.close(); });
 $('view').addEventListener('close', function(){ $('view-img').removeAttribute('src'); viewing = null; });
 $('view-del').onclick = async function(){
-  var p = viewing; if (!p || !confirm('Delete "' + (p.title || 'Untitled') + '"? This can\'t be undone.')) return;
+  var p = viewing; if (!p) return;
+  var whose = (S.uid && S.uid === p.user_id) ? '' : p.username + "'s post ";
+  if (!confirm('Delete ' + whose + '"' + (p.title || 'Untitled') + '"? This can\'t be undone.')) return;
   this.disabled = true;
   try {
     await S.ensure();
-    await S.http('/rest/v1/art_posts?id=eq.' + p.id, { method:'DELETE', token:S.token });
-    try { await S.http('/storage/v1/object/' + C.bucket + '/' + p.path, { method:'DELETE', token:S.token }); } catch(e){}
+    var gone = await S.http('/rest/v1/art_posts?id=eq.' + p.id, { method:'DELETE', token:S.token, headers:{ Prefer:'return=representation' } });
+    if (!gone || !gone.length) throw new Error(isAdmin ? "Couldn't delete it. Run art/admin-delete.sql in Supabase to let admins delete any post." : "Couldn't delete it. Is it still your post?");
+    // then the image file itself (if this fails the post is already off the wall; the file just stays in storage)
+    try { await S.http('/storage/v1/object/' + C.bucket + '/' + p.path.split('/').map(encodeURIComponent).join('/'), { method:'DELETE', token:S.token }); } catch(e){}
     var el = document.querySelector('.card[data-id="' + p.id + '"]'); if (el) el.remove();
     delete byId[p.id]; total = Math.max(0, total - 1); offset = Math.max(0, offset - 1); renderCount();
     $('empty').hidden = $('grid').children.length > 0;
