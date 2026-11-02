@@ -21,6 +21,7 @@ create table if not exists public.art_posts (
   user_id    uuid        not null default auth.uid() references auth.users(id) on delete cascade,
   username   text        not null default '',
   title      text        not null default '' check (char_length(title) <= 80),
+  description text       not null default '' check (char_length(description) <= 1000),
   path       text        not null unique,
   mime       text        not null check (mime in ('image/png','image/jpeg','image/gif','image/webp')),
   width      integer     check (width  between 1 and 20000),
@@ -59,8 +60,11 @@ drop policy if exists "art delete own" on public.art_posts;
 create policy "art read all"   on public.art_posts for select using (true);
 create policy "art insert own" on public.art_posts for insert to authenticated with check (auth.uid() = user_id);
 create policy "art delete own" on public.art_posts for delete to authenticated using (auth.uid() = user_id);
--- no update policy: posts can't be edited, only deleted by their owner
+drop policy if exists "art update own" on public.art_posts;
+create policy "art update own" on public.art_posts for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 grant usage on schema public to anon, authenticated;
 grant select on public.art_posts to anon, authenticated;
 grant insert, delete on public.art_posts to authenticated;
+grant update (title, description) on public.art_posts to authenticated;  -- owners can only edit these two

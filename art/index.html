@@ -37,7 +37,7 @@ button,input{font:inherit;color:inherit}
 .acct{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
 .acct b{color:var(--text);font-weight:600}
 
-.btn{border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 16px;
+.btn{text-decoration:none;display:inline-flex;align-items:center;border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 16px;
   font:500 13px/1 'JetBrains Mono',monospace;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
 .btn.solid{background:var(--accent);border-color:var(--accent);color:#16120A;font-weight:700}
@@ -113,6 +113,14 @@ dialog::backdrop{background:rgba(5,6,8,.82);backdrop-filter:blur(3px)}
 #view .info{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
 #view .info h3{margin:0;font-size:16px;font-weight:600}
 #view .info p{margin:2px 0 0;color:var(--muted);font-size:13px}
+#view .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%}
+#view .info{flex-direction:column;align-items:stretch}
+#view .desc{margin:0;color:var(--text);font-size:14.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;max-height:22vh;overflow:auto}
+#view .edit{display:flex;flex-direction:column;gap:8px}
+textarea.field{resize:vertical;min-height:70px;line-height:1.5}
+.chars{font:500 11px/1 'JetBrains Mono',monospace;color:var(--muted);text-align:right;margin-top:4px}
+.card .d{padding:0 11px 10px;margin-top:-4px;font-size:12.5px;line-height:1.45;color:var(--muted);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
   background:#000a;cursor:pointer;font-size:18px;line-height:1}
 .x:hover{border-color:var(--accent);color:var(--accent)}
@@ -162,6 +170,10 @@ footer{margin-top:70px;color:var(--muted);font-size:13px}
         <label>Title <span class="mono">(optional)</span>
           <input class="field" id="title" maxlength="80" autocomplete="off" placeholder="Untitled">
         </label>
+        <label>Description <span class="mono">(optional)</span>
+          <textarea class="field" id="desc" maxlength="1000" rows="3" placeholder="What is it? How did you make it?"></textarea>
+          <div class="chars" id="desc-n"></div>
+        </label>
         <div class="fileinfo" id="fileinfo"></div>
         <div class="row">
           <button class="btn solid" id="post" type="submit">Post it</button>
@@ -210,15 +222,28 @@ footer{margin-top:70px;color:var(--muted);font-size:13px}
   <button class="x" id="view-x" type="button" aria-label="Close">&times;</button>
   <div class="stage"><img id="view-img" alt=""></div>
   <div class="info">
-    <div><h3 id="view-title"></h3><p id="view-meta"></p></div>
-    <div class="row">
-      <a class="btn" id="view-open" target="_blank" rel="noopener">Open full size</a>
-      <button class="btn danger" id="view-del" type="button" hidden>Delete</button>
+    <div class="head">
+      <div><h3 id="view-title"></h3><p id="view-meta"></p></div>
+      <div class="row">
+        <a class="btn" id="view-open" target="_blank" rel="noopener">Open full size</a>
+        <button class="btn" id="view-edit" type="button" hidden>Edit</button>
+        <button class="btn danger" id="view-del" type="button" hidden>Delete</button>
+      </div>
     </div>
+    <p class="desc" id="view-desc" hidden></p>
+    <form class="edit" id="edit-form" hidden>
+      <input class="field" id="edit-title" maxlength="80" autocomplete="off" placeholder="Untitled" aria-label="Title">
+      <textarea class="field" id="edit-desc" maxlength="1000" rows="4" placeholder="Description" aria-label="Description"></textarea>
+      <div class="row">
+        <button class="btn solid" id="edit-save" type="submit">Save</button>
+        <button class="btn" id="edit-cancel" type="button">Cancel</button>
+      </div>
+      <p class="msg" id="edit-msg" role="status"></p>
+    </form>
   </div>
 </dialog>
 
-<script src="config.js?v=1"></script>
+<script src="config.js?v=2"></script>
 <script>
 (function(){
 'use strict';
@@ -272,6 +297,7 @@ var S = {
     if (/payload too large|exceeded the maximum/.test(m)) return 'That file is too big (8 MB max).';
     if (/mime type|invalid_mime/.test(m)) return 'Only PNG, JPG, GIF or WEBP files.';
     if (/relation .*art_posts.* does not exist|bucket not found/.test(m)) return 'The art wall is not set up yet (see art/SETUP.md).';
+    if (/description/.test(m) && /column/.test(m)) return 'Descriptions are not switched on yet: run art/add-descriptions.sql in Supabase.';
     return e.message;
   }
 };
@@ -329,7 +355,7 @@ function fmtSize(b){ return b > 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.
 function resetPick(){
   chosen = null; dims = null;
   if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
-  $('file').value = ''; $('title').value = '';
+  $('file').value = ''; $('title').value = ''; $('desc').value = ''; $('desc-n').textContent = '';
   $('compose').hidden = true; $('pick').hidden = false;
 }
 function choose(f){
@@ -361,6 +387,7 @@ document.addEventListener('paste', function(e){
   var it = Array.prototype.find.call(e.clipboardData ? e.clipboardData.items : [], function(i){ return i.kind === 'file' && TYPES[i.type]; });
   if (it) choose(it.getAsFile());
 });
+$('desc').addEventListener('input', function(){ $('desc-n').textContent = this.value.length > 800 ? this.value.length + ' / 1000' : ''; });
 $('cancel').onclick = function(){ resetPick(); setMsg('up-msg', ''); };
 
 function rid(){
@@ -381,7 +408,7 @@ async function doPost(){
       headers:{ 'Content-Type':chosen.type, 'x-upsert':'false' } });
     var rows = await S.http('/rest/v1/art_posts', {
       method:'POST', token:S.token, headers:{ Prefer:'return=representation' },
-      body:{ title:$('title').value.trim().slice(0, 80), path:path, mime:chosen.type, width:dims.w, height:dims.h } });
+      body:{ title:$('title').value.trim().slice(0, 80), description:$('desc').value.trim().slice(0, 1000), path:path, mime:chosen.type, width:dims.w, height:dims.h } });
     path = null;
     resetPick(); setMsg('up-msg', 'Posted!', 'good');
     if (rows && rows[0]) { $('empty').hidden = true; $('grid').prepend(card(rows[0])); total++; renderCount(); }
@@ -421,6 +448,7 @@ function card(p){
   var by = document.createElement('span'); by.className = 'by'; by.textContent = p.username;
   m.appendChild(t); m.appendChild(by);
   b.appendChild(w); b.appendChild(m);
+  if (p.description) { var d = document.createElement('div'); d.className = 'd'; d.textContent = p.description; b.appendChild(d); }
   return b;
 }
 function renderCount(){ $('count').textContent = total ? total + (total === 1 ? ' piece' : ' pieces') : ''; }
@@ -460,10 +488,35 @@ $('grid').addEventListener('click', function(e){
   $('view-title').textContent = p.title || 'Untitled';
   $('view-meta').textContent = 'by ' + p.username + ' · ' + ago(p.created_at) + (p.width ? ' · ' + p.width + '×' + p.height : '');
   $('view-open').href = url;
-  $('view-del').hidden = !(S.uid && S.uid === p.user_id);
+  var mine = !!(S.uid && S.uid === p.user_id);
+  $('view-del').hidden = !mine; $('view-edit').hidden = !mine;
+  showDesc(p); $('edit-form').hidden = true;
   $('view').showModal();
 });
+function showDesc(p){ $('view-desc').textContent = p.description || ''; $('view-desc').hidden = !p.description; }
 $('view-x').onclick = function(){ $('view').close(); };
+$('view-edit').onclick = function(){
+  var p = viewing; if (!p) return;
+  $('edit-title').value = p.title || ''; $('edit-desc').value = p.description || '';
+  setMsg('edit-msg', ''); $('view-desc').hidden = true; $('edit-form').hidden = false; $('edit-desc').focus();
+};
+$('edit-cancel').onclick = function(){ $('edit-form').hidden = true; if (viewing) showDesc(viewing); };
+$('edit-form').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var p = viewing; if (!p) return;
+  var t = $('edit-title').value.trim().slice(0, 80), d = $('edit-desc').value.trim().slice(0, 1000);
+  $('edit-save').disabled = true; setMsg('edit-msg', 'Saving…');
+  try {
+    await S.ensure();
+    var rows = await S.http('/rest/v1/art_posts?id=eq.' + p.id, { method:'PATCH', token:S.token,
+      headers:{ Prefer:'return=representation' }, body:{ title:t, description:d } });
+    if (!rows || !rows.length) throw new Error("Couldn't save. Is this still your post?");
+    p.title = rows[0].title; p.description = rows[0].description;
+    $('view-title').textContent = p.title || 'Untitled'; showDesc(p); $('edit-form').hidden = true;
+    var old = document.querySelector('.card[data-id="' + p.id + '"]'); if (old) old.replaceWith(card(p));
+  } catch(err){ setMsg('edit-msg', S.friendly(err), 'bad'); }
+  finally { $('edit-save').disabled = false; }
+});
 $('view').addEventListener('click', function(e){ if (e.target === this) this.close(); });
 $('view').addEventListener('close', function(){ $('view-img').removeAttribute('src'); viewing = null; });
 $('view-del').onclick = async function(){
