@@ -267,9 +267,10 @@ footer{margin-top:70px;color:var(--muted);font-size:13px}
     <form class="admin" id="admin-form" hidden>
       <div class="ttl">ADMIN</div>
       <label class="chk"><input type="checkbox" id="adm-ok"> Approved for the FlatMMO script</label>
-      <label>Replaces these game sprites <span class="mono">(optional, one per line)</span>
+      <label>Game sprites <span class="mono">(optional, one per line)</span>
         <textarea class="field" id="adm-rep" rows="3" placeholder="e.g. images/npcs/chef.png"></textarea>
       </label>
+      <label class="chk"><input type="checkbox" id="adm-deco"> Decorate instead of replace: keep the game's sprite, add twinkling fairy lights, and put this art at its base (great for presents under a tree)</label>
       <p class="hintx">Get sprite names from the in-game art panel → Sprite finder → Copy. A <span class="mono">*</span> matches anything, so <span class="mono">images/npcs/goblin*</span> covers every goblin frame. Leave empty to only show it in the in-game gallery.</p>
       <div class="row"><button class="btn solid" id="adm-save" type="submit">Save</button></div>
       <p class="msg" id="adm-msg" role="status"></p>
@@ -553,11 +554,17 @@ $('grid').addEventListener('click', function(e){
   $('view-del').textContent = (!mine && isAdmin) ? 'Delete (admin)' : 'Delete';
   showDesc(p); $('edit-form').hidden = true;
   $('admin-form').hidden = !isAdmin;
-  if (isAdmin) { $('adm-ok').checked = !!p.approved; $('adm-rep').value = (p.replaces || []).join('\n'); setMsg('adm-msg', ''); }
+  if (isAdmin) { $('adm-ok').checked = !!p.approved; showReps(p); setMsg('adm-msg', ''); }
   $('view').showModal();
 });
 function showDesc(p){ $('view-desc').textContent = p.description || ''; $('view-desc').hidden = !p.description; }
 $('view-x').onclick = function(){ $('view').close(); };
+// "+name" means decorate that sprite instead of replacing it
+function showReps(p){
+  var r = p.replaces || [];
+  $('adm-deco').checked = r.length > 0 && r.every(function(v){ return v.charAt(0) === '+'; });
+  $('adm-rep').value = r.map(function(v){ return v.replace(/^\+/, ''); }).join('\n');
+}
 function spriteKey(v){
   v = String(v).trim(); if (!v) return '';
   try { if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) v = new URL(v).pathname; } catch(e){}
@@ -568,14 +575,16 @@ function spriteKey(v){
 $('admin-form').addEventListener('submit', async function(e){
   e.preventDefault();
   var p = viewing; if (!p) return;
-  var reps = $('adm-rep').value.split(/[\n,]+/).map(spriteKey).filter(Boolean);
+  var deco = $('adm-deco').checked;
+  var reps = $('adm-rep').value.split(/[\n,]+/).map(function(v){ return spriteKey(String(v).replace(/^\s*\+/, '')); })
+    .filter(Boolean).map(function(v){ return deco ? '+' + v : v; });
   $('adm-save').disabled = true; setMsg('adm-msg', 'Saving…');
   try {
     await S.ensure();
     var r = await S.http('/rest/v1/rpc/art_admin_set', { method:'POST', token:S.token,
       body:{ p_id:p.id, p_approved:$('adm-ok').checked, p_replaces:reps } });
     p.approved = r.approved; p.replaces = r.replaces;
-    $('adm-rep').value = (p.replaces || []).join('\n');
+    showReps(p);
     var old = document.querySelector('.card[data-id="' + p.id + '"]'); if (old) old.replaceWith(card(p));
     setMsg('adm-msg', p.approved ? 'Saved. Players will see it within a few minutes.' : 'Saved. Not shown in game.', 'good');
   } catch(err){ setMsg('adm-msg', S.friendly(err), 'bad'); }

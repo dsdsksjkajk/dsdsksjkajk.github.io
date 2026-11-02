@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.3.1
+// @version      1.4.1
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -123,9 +123,11 @@
   let reps = new Map();            // exact sprite key -> replacement
   let repPats = [];                // [{ re, r }] for names with * in them, e.g. images/npcs/goblin*
   const patRe = (k) => new RegExp('^' + k.split('*').map((x) => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+  // A rule is { r: loaded art, deco: bool }. deco ("+name" on the wall) keeps the game's sprite,
+  // adds twinkling fairy lights on it, and puts the art (e.g. presents) at its base.
   function findRep(k) {
     const r = reps.get(k); if (r) return r;
-    for (const p of repPats) if (p.re.test(k)) return p.r;
+    for (const p of repPats) if (p.re.test(k)) return p.rule;
     return false;
   }
   let lookup = new WeakMap();      // game image -> replacement | false   (cache, keeps drawing fast)
@@ -190,9 +192,11 @@
             try { r = await buildRep(p); r.path = p.path; built.set(p.id, r); } catch (e) { continue; }
           }
           p.replaces.forEach((k) => {
-            k = spriteKey(k); if (!k) return;
-            if (k.includes('*')) pats.push({ re: patRe(k), r });
-            else if (!next.has(k)) next.set(k, r);
+            k = String(k).trim(); const deco = k.startsWith('+');
+            k = spriteKey(deco ? k.slice(1) : k); if (!k) return;
+            const rule = { r, deco };
+            if (k.includes('*')) pats.push({ re: patRe(k), rule });
+            else if (!next.has(k)) next.set(k, rule);
           });
         }
         for (const [id, r] of built) if (!wanted.some((p) => p.id === id)) { r.close(); built.delete(id); }
@@ -218,9 +222,13 @@
     function readAlpha(src, w, h) {
       const c = W.document.createElement('canvas'); c.width = w; c.height = h;
       const x = c.getContext('2d'); orig.call(x, src, 0, 0);
-      const d = x.getImageData(0, 0, w, h).data, a = new Uint8Array(w * h);
-      for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
-      return { w, h, a, boxes: new Map() };
+      const d = x.getImageData(0, 0, w, h).data, a = new Uint8Array(w * h), leaf = new Uint8Array(w * h);
+      for (let i = 0; i < a.length; i++) {
+        a[i] = d[i * 4 + 3];
+        const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+        leaf[i] = g > r + 12 && g >= b - 30 ? 1 : 0;
+      }
+      return { w, h, a, leaf, boxes: new Map(), lights: new Map() };
     }
     function pixelsOf(img) {
       let p = pix.get(img);
@@ -256,6 +264,60 @@
       if (p.boxes.size < 500) p.boxes.set(key, b);
       return b;
     }
+    // Fairy-light spots on the sprite's own pixels (leafy ones if there are enough), stable per sprite.
+    function lightSpots(p, sx, sy, sw, sh) {
+      const key = sx + ',' + sy + ',' + sw + ',' + sh;
+      let L = p.lights.get(key);
+      if (L) return L;
+      let seed = 0; for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+      const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      let leafy = 0, solid = 0;
+      for (let yy = sy; yy < sy + sh; yy += 2) for (let xx = sx; xx < sx + sw; xx += 2) {
+        const i = yy * p.w + xx; if (p.a[i] > 200) { solid++; if (p.leaf[i]) leafy++; }
+      }
+      const useLeaf = leafy > solid * 0.25;
+      const want = Math.max(6, Math.min(48, Math.round((useLeaf ? leafy : solid) * 4 / 90)));
+      const gap = Math.max(4, Math.round(Math.sqrt(sw * sh / Math.max(1, want)) * 0.45));
+      const COLS = ['#ff5a5a', '#ffe15a', '#6ec3ff', '#8cff8c', '#ff8ce6', '#ffb347'];
+      L = [];
+      for (let tries = 0; tries < 6000 && L.length < want; tries++) {
+        const xx = sx + Math.floor(rnd() * sw), yy = sy + Math.floor(rnd() * sh), i = yy * p.w + xx;
+        if (p.a[i] <= 200 || (useLeaf && !p.leaf[i])) continue;
+        if (L.some((l) => Math.abs(l.x - xx) < gap && Math.abs(l.y - yy) < gap)) continue;
+        L.push({ x: xx - sx, y: yy - sy, c: COLS[L.length % COLS.length], ph: rnd() * 6.283 });
+      }
+      if (p.lights.size < 200) p.lights.set(key, L);
+      return L;
+    }
+    function drawDeco(ctx, src, rule, sx, sy, sw, sh, dx, dy, dw, dh) {
+      const kx = dw / sw, ky = dh / sh;
+      const p = pixelsOf(src);
+      const tb = trimBox(src, sx, sy, sw, sh);
+      // twinkling lights
+      if (p) {
+        const L = lightSpots(p, Math.round(sx), Math.round(sy), Math.round(sw), Math.round(sh));
+        const t = performance.now() / 1000, s = Math.max(3, 3 * Math.abs(kx));
+        ctx.save();
+        for (const l of L) {
+          const on = 0.5 + 0.5 * Math.sin(t * 2.4 + l.ph);
+          const x = dx + l.x * kx, y = dy + l.y * ky;
+          ctx.fillStyle = l.c;
+          ctx.globalAlpha = 0.28 * on; ctx.fillRect(x - s, y - s, s * 3, s * 3);   // glow
+          ctx.globalAlpha = 0.5 + 0.5 * on; ctx.fillRect(x, y, s, s);
+          ctx.globalAlpha = 0.6 * on; ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, Math.max(1, s / 2), Math.max(1, s / 2));
+        }
+        ctx.restore();
+      }
+      // the post's art (presents) at the base
+      if (rule.noArt) return;
+      const f = rule.r.frame();
+      let bx = dx, by = dy, bw = dw, bh = dh;
+      if (tb) { bx = dx + tb.x * kx; by = dy + tb.y * ky; bw = tb.w * kx; bh = tb.h * ky; }
+      // size it to the whole sprite box (not just the trunk on a split tree), sit it on the visible bottom
+      const tw = Math.max(Math.abs(bw) * 0.8, Math.abs(dw) * 0.6), th = Math.abs(dh) * 0.22;
+      const sc = Math.min(tw / f.width, th / f.height), w = f.width * sc, h = f.height * sc;
+      orig.call(ctx, f, bx + (bw - w) / 2, by + bh - h, w, h);
+    }
     const Img = W.HTMLImageElement;
     proto.__dsArtHooked = true;
     proto.drawImage = function (src) {
@@ -267,12 +329,24 @@
           const k = /^(data|blob):/.test(u) ? '' : spriteKey(u);
           if (k) noteSeen(k, u, src);
           r = k ? findRep(k) : false;
+          // a sprite split in layers (pine_tree1_upper / _lower): only the bottom part gets the presents
+          if (r && r.deco) r = { r: r.r, deco: true, noArt: /(^|[-_ ./])(upper|top|canopy|crown|leaves)([-_ .\d]|$)/i.test(k.slice(k.lastIndexOf('/') + 1)) };
         } else r = false;
         lookup.set(src, r);
       }
       if (!r || !S.sprites) return orig.apply(this, arguments);
-      const f = r.frame();
       const n = arguments.length;
+      if (r.deco) {
+        const res = orig.apply(this, arguments);   // the game's own sprite, untouched
+        const iw0 = src.naturalWidth || src.width, ih0 = src.naturalHeight || src.height;
+        let sx = 0, sy = 0, sw = iw0, sh = ih0, ddx, ddy, ddw, ddh;
+        if (n >= 9) { sx = arguments[1]; sy = arguments[2]; sw = arguments[3]; sh = arguments[4]; ddx = arguments[5]; ddy = arguments[6]; ddw = arguments[7]; ddh = arguments[8]; }
+        else if (n >= 5) { ddx = arguments[1]; ddy = arguments[2]; ddw = arguments[3]; ddh = arguments[4]; }
+        else { ddx = arguments[1]; ddy = arguments[2]; ddw = iw0; ddh = ih0; }
+        try { drawDeco(this, src, r, sx, sy, sw, sh, ddx, ddy, ddw, ddh); } catch (e) { /* never break the game */ }
+        return res;
+      }
+      const f = r.r.frame();
       let dx, dy, dw, dh;
       if (n >= 9) { dx = arguments[5]; dy = arguments[6]; dw = arguments[7]; dh = arguments[8]; }
       else if (n >= 5) { dx = arguments[1]; dy = arguments[2]; dw = arguments[3]; dh = arguments[4]; }
@@ -613,7 +687,7 @@ input[type=range]{accent-color:var(--accent)}
   // Words that usually describe an animation or direction, not the character itself.
   const ACT = 'attack|attacking|atk|hit|hurt|walk|walking|run|running|idle|stand|standing|move|moving|death|die|dying|dead|' +
     'cast|casting|shoot|shooting|jump|swing|chop|mine|mining|fish|fishing|left|right|up|down|front|back|side|' +
-    'north|south|east|west|n|s|e|w|l|r|f|b|anim|frame|sheet';
+    'north|south|east|west|n|s|e|w|l|r|f|b|anim|frame|sheet|upper|lower|top|bottom|base|front|behind|back';
   const ACT_RE = new RegExp('[-_ .]+(' + ACT + ')$', 'i');
   const ACT_DIR = new RegExp('^(' + ACT + ')$', 'i');
   function groupOf(k, mode) {
@@ -674,8 +748,8 @@ input[type=range]{accent-color:var(--accent)}
       if (many) im.dataset.urls = JSON.stringify(keys.slice(0, 40).map((k) => seen.get(k).url));   // animated preview
       const sn = document.createElement('div'); sn.className = 'sn'; sn.textContent = name;
       const sm = document.createElement('small');
-      const on = keys.some((k) => findRep(k));
-      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? ' · replaced' : '');
+      const hit = keys.map((k) => findRep(k)).find(Boolean), on = !!hit;
+      sm.textContent = (many ? keys.length + ' frames' : first.w + '×' + first.h) + (on ? (hit.deco ? ' · decorated' : ' · replaced') : '');
       if (on) sm.className = 'on';
       sn.appendChild(sm);
       row.append(tw, im, sn, copyBtn(name));
@@ -686,7 +760,8 @@ input[type=range]{accent-color:var(--accent)}
         const r = document.createElement('div'); r.className = 'srow sub';
         const i2 = document.createElement('img'); i2.alt = ''; i2.src = info.url;
         const n2 = document.createElement('div'); n2.className = 'sn'; n2.textContent = k.slice(k.lastIndexOf('/') + 1);
-        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (findRep(k) ? ' · replaced' : '');
+        const h2 = findRep(k);
+        const s2 = document.createElement('small'); s2.textContent = info.w + '×' + info.h + (h2 ? (h2.deco ? ' · decorated' : ' · replaced') : '');
         if (findRep(k)) s2.className = 'on';
         n2.appendChild(s2); r.append(i2, n2, copyBtn(k)); list.appendChild(r);
       });
