@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlatMMO Art Panel
 // @namespace    https://dsdsksjkajk.github.io/
-// @version      1.6.0
+// @version      1.6.1
 // @description  Festive sprites and art from the dsdsksjkajk Art wall, plus an optional pumpkin jumpscare, for FlatMMO. Cosmetic only: it never touches gameplay.
 // @author       dsdsksjkajk
 // @homepageURL  https://dsdsksjkajk.github.io/art/
@@ -293,15 +293,15 @@
     }
     // Where the head is: the typical width/centre of the solid rows in the top band of the sprite.
     // (median, so a raised sword or ears sticking out don't throw it off)
-    function headOf(p, x0, y0, w, h) {
-      const key = 'head:' + x0 + ',' + y0 + ',' + w + ',' + h;
+    function headOf(p, x0, y0, w, h, minA) {
+      const key = 'head:' + x0 + ',' + y0 + ',' + w + ',' + h + ',' + minA;
       if (p.boxes.has(key)) return p.boxes.get(key);
       // longest unbroken run of solid pixels in each row of the top part (a sword next to the head is a separate run)
       const rows = [], scan = Math.max(4, Math.round(h * 0.5));
       for (let yy = y0; yy < y0 + scan; yy++) {
         let best = null, a = -1;
         for (let xx = x0; xx <= x0 + w; xx++) {
-          const solid = xx < x0 + w && p.a[yy * p.w + xx] > 128;
+          const solid = xx < x0 + w && p.a[yy * p.w + xx] > minA;
           if (solid && a < 0) a = xx;
           if (!solid && a >= 0) { if (!best || xx - a > best.w) best = { w: xx - a, c: (a + xx) / 2 }; a = -1; }
         }
@@ -323,8 +323,9 @@
     }
     function drawHat(ctx, src, rule, sx, sy, sw, sh, dx, dy, dw, dh) {
       const p = pixelsOf(src); if (!p) return;
-      const tb = trimBox(src, sx, sy, sw, sh, 128); if (!tb) return;
-      const hd = headOf(p, Math.round(sx) + tb.x, Math.round(sy) + tb.y, tb.w, tb.h); if (!hd) return;
+      // count faint pixels as body too: ghosts and other see-through monsters are mostly half-transparent
+      const tb = trimBox(src, sx, sy, sw, sh, 24); if (!tb) return;
+      const hd = headOf(p, Math.round(sx) + tb.x, Math.round(sy) + tb.y, tb.w, tb.h, 24); if (!hd) return;
       const kx = dw / sw, ky = dh / sh, f = rule.r.frame();
       const hw = hd.w * 1.3 * Math.abs(kx), hh = f.height * hw / f.width;
       const cx = dx + (hd.cx - sx) * kx;
