@@ -148,6 +148,11 @@ window.GAME = {
       "key": "contest",
       "title": "Champion",
       "desc": "win a fishing contest"
+    },
+    {
+      "key": "contest_5",
+      "title": "Grand Champion",
+      "desc": "win 5 fishing contests"
     }
   ]
 };

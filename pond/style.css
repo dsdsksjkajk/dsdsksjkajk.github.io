@@ -122,6 +122,19 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
 .board .t { color: var(--legendary); font-size: .9rem; margin-left: .4rem; }
 .board .pts { font: 600 1.15rem var(--pixel); }
 
+.crown { margin-right: .35rem; }
+.trophy { margin-left: .5rem; font-size: .9rem; color: var(--legendary); white-space: nowrap; }
+.reigning { margin: 0 0 .75rem; }
+.reigning a { font-weight: 700; }
+.hall { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
+.hall li { display: grid; grid-template-columns: minmax(7rem, auto) 1fr auto; gap: .75rem; align-items: baseline; padding: .5rem .25rem; border-bottom: 1px solid rgba(169, 201, 204, .2); }
+.hall li:first-child a { color: var(--legendary); }
+.hall a { font-weight: 700; text-decoration: none; }
+.hall a:hover { text-decoration: underline; }
+.hall span { color: var(--mist); font-size: .95rem; }
+.hall time { color: var(--mist); font-size: .9rem; white-space: nowrap; }
+@media (max-width: 560px) { .hall li { grid-template-columns: 1fr auto; } .hall span { grid-column: 1 / -1; order: 3; } }
+
 /* ---------- the tank (the memorable bit) ---------- */
 .tank {
   position: relative;

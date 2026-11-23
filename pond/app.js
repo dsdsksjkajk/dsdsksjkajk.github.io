@@ -37,7 +37,10 @@
 
   const demo = makeDemo();
   const data = {
-    top: () => (DEMO ? demo.top() : api("players?select=name,display,title,points&points=gt.0&order=points.desc&limit=20")),
+    top: () => (DEMO ? demo.top() : api("players?select=name,display,title,points,contest_wins&points=gt.0&order=points.desc&limit=20")),
+    // Hall of Champions (an older Supabase setup may not have this table: show nothing then)
+    history: () =>
+      DEMO ? demo.history() : api("contest_history?select=*&order=id.desc&limit=10").catch(() => []),
     recent: () =>
       DEMO ? demo.recent() : api("catches?select=player,fish,rarity,weight,caught_at&rarity=in.(Epic,Legendary)&order=id.desc&limit=8"),
     player: async (name) =>
@@ -107,7 +110,8 @@
     if (!ev) {
       el.className = "live";
       const next = live.nextBossAt && live.nextBossAt > Date.now() ? ` The next boss is due in about ${Math.max(1, Math.round((live.nextBossAt - Date.now()) / 3600000))}h.` : "";
-      el.innerHTML = `${status}<p>No event right now.${next}</p>`;
+      const champ = live.champion ? ` Reigning contest champion: ${esc(live.champion.display)}.` : "";
+      el.innerHTML = `${status}<p>No event right now.${next}${champ}</p>`;
       return;
     }
     if (ev.type === "golden") {
@@ -131,12 +135,18 @@
   async function renderHome() {
     document.title = "Flatfish's Pond: FlatMMO fishing";
     view.innerHTML = `<p class="loading">Casting a line…</p>`;
-    const [top, recent] = await Promise.all([data.top(), data.recent()]);
+    const [top, recent, history, live] = await Promise.all([
+      data.top(),
+      data.recent(),
+      data.history(),
+      data.live().catch(() => null),
+    ]);
+    const champ = live && live.champion;
     const board = top.length
       ? `<ol class="board">${top
           .map(
             (p, i) => `<li><span class="pos">${i + 1}</span>
-              <span><a href="${profileLink(p.name)}">${esc(p.display)}</a>${p.title ? `<span class="t">the ${esc(p.title)}</span>` : ""}</span>
+              <span>${champ && champ.name === p.name ? `<span class="crown" title="Reigning contest champion">👑</span>` : ""}<a href="${profileLink(p.name)}">${esc(p.display)}</a>${p.title ? `<span class="t">the ${esc(p.title)}</span>` : ""}${p.contest_wins ? `<span class="trophy" title="Contest trophies">🏆${num(p.contest_wins)}</span>` : ""}</span>
               <span class="pts">${num(p.points)}</span></li>`
           )
           .join("")}</ol>`
@@ -149,7 +159,18 @@
           )
           .join("")}</ul>`
       : `<p class="empty">No Epic or Legendary catches yet.</p>`;
-    view.innerHTML = `<h2>Top anglers</h2>${board}<h2>Latest big catches</h2>${big}`;
+    const hall = history.length
+      ? `<h2>Hall of Champions</h2>
+        ${champ ? `<p class="reigning">👑 <a href="${profileLink(champ.name)}">${esc(champ.display)}</a> holds the crown, won with a ${num(champ.points)}pt ${esc(champ.fish)}.</p>` : ""}
+        <ol class="hall">${history
+          .map(
+            (h) => `<li><a href="${profileLink(h.winner)}">${esc(h.display)}</a>
+              <span>${esc(h.fish)}, ${kg(h.weight)} (${num(h.points)}pts) against ${h.entrants - 1} ${h.entrants === 2 ? "rival" : "rivals"}</span>
+              <time datetime="${new Date(h.ended_at).toISOString()}">${new Date(h.ended_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</time></li>`
+          )
+          .join("")}</ol>`
+      : "";
+    view.innerHTML = `<h2>Top anglers</h2>${board}${hall}<h2>Latest big catches</h2>${big}`;
   }
 
   async function renderPlayer(name) {
@@ -160,7 +181,13 @@
       return;
     }
     document.title = `${p.display}'s aquarium: Flatfish's Pond`;
-    const [rank, tank, achRows] = await Promise.all([data.rank(p.points), data.aquarium(p.name), data.achievements(p.name)]);
+    const [rank, tank, achRows, live] = await Promise.all([
+      data.rank(p.points),
+      data.aquarium(p.name),
+      data.achievements(p.name),
+      data.live().catch(() => null),
+    ]);
+    const isChamp = live && live.champion && live.champion.name === p.name;
     const caught = new Map(tank.map((t) => [t.fish, t]));
     const junk = tank.filter((t) => t.rarity === "Junk").reduce((n, t) => n + t.caught, 0);
     const species = Object.values(GAME.fish).flat().length;
@@ -174,6 +201,7 @@
       ["Casts", num(p.casts)],
       ["Species", `${caught.size}/${species}`],
       ["Bosses beaten", num(p.boss_kills)],
+      ["Contest trophies", num(p.contest_wins)],
       ["Daily streak", num(p.streak)],
     ];
 
@@ -202,7 +230,7 @@
     view.innerHTML = `
       <a class="back" href="#/">Back to the leaderboard</a>
       <h1>${esc(p.display)}</h1>
-      ${p.title ? `<p class="title-line">the ${esc(p.title)}</p>` : `<p class="title-line"></p>`}
+      <p class="title-line">${p.title ? `the ${esc(p.title)}` : ""}${isChamp ? `${p.title ? ", " : ""}👑 Reigning contest champion` : ""}</p>
       <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
       <h2>Aquarium</h2>
       <div class="tank" id="tank" role="img" aria-label="${esc(p.display)}'s aquarium with ${caught.size} species"></div>
@@ -312,7 +340,7 @@
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     const players = names.map((n, i) => {
       const casts = Math.round(400 / (i + 1) + rnd() * 40);
-      return { name: n, display: n, title: titles[i], points: Math.round(casts * (22 + rnd() * 10)), coins: Math.round(casts * 12), rod: Math.max(0, 4 - i), casts, streak: (i * 3) % 9, chests: Math.round(casts / 50), boss_kills: Math.max(0, 3 - i) };
+      return { name: n, display: n, title: titles[i], points: Math.round(casts * (22 + rnd() * 10)), coins: Math.round(casts * 12), rod: Math.max(0, 4 - i), casts, streak: (i * 3) % 9, chests: Math.round(casts / 50), boss_kills: Math.max(0, 3 - i), contest_wins: [4, 2, 0, 1, 0, 0, 1, 0][i] };
     }).sort((a, b) => b.points - a.points);
     const tanks = {};
     for (const p of players) {
@@ -326,7 +354,12 @@
     }
     const delay = (v) => new Promise((r) => setTimeout(() => r(v), 120));
     return {
-      top: () => delay(players.map(({ name, display, title, points }) => ({ name, display, title, points }))),
+      top: () => delay(players.map(({ name, display, title, points, contest_wins }) => ({ name, display, title, points, contest_wins }))),
+      history: () => delay([
+        { winner: "winton", display: "winton", fish: "Giant Squid", weight: 312.4, points: 214, entrants: 6, ended_at: Date.now() - 3 * 3600000 },
+        { winner: "dsdsksjkajk", display: "dsdsksjkajk", fish: "Swordfish", weight: 98.1, points: 92, entrants: 4, ended_at: Date.now() - 27 * 3600000 },
+        { winner: "snygget", display: "snygget", fish: "Golden Carp", weight: 7.7, points: 88, entrants: 2, ended_at: Date.now() - 52 * 3600000 },
+      ]),
       recent: () => delay([
         { player: "winton", fish: "Baby Kraken", rarity: "Legendary", weight: 412.5 },
         { player: "dsdsksjkajk", fish: "Great White Shark", rarity: "Epic", weight: 880 },
@@ -338,7 +371,7 @@
       aquarium: (n) => delay(tanks[n] || []),
       achievements: (n) => delay(GAME.achievements.filter((a, i) => (hash(n + a.key) % 3) === 0 || i === 0).map((a) => ({ key: a.key }))),
       search: (q) => delay(players.filter((p) => p.name.includes(q.toLowerCase())).slice(0, 8)),
-      live: () => delay({ online: true, at: Date.now(), event: { type: "boss", name: "The Leviathan", hp: 3420, maxHp: 7500, endsAt: Date.now() + 17 * 60000, top: [{ name: "winton", dmg: 1840 }, { name: "dsdsksjkajk", dmg: 1310 }, { name: "bobek", dmg: 930 }] } }),
+      live: () => delay({ online: true, at: Date.now(), champion: { name: "winton", display: "winton", fish: "Giant Squid", points: 214, trophies: 2 }, event: { type: "boss", name: "The Leviathan", hp: 3420, maxHp: 7500, endsAt: Date.now() + 17 * 60000, top: [{ name: "winton", dmg: 1840 }, { name: "dsdsksjkajk", dmg: 1310 }, { name: "bobek", dmg: 930 }] } }),
     };
   }
 })();
