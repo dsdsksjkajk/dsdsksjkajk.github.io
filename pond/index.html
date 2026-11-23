@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flatfish's Pond: FlatMMO fishing</title>
+  <meta name="description" content="Look up any angler's catches, aquarium and achievements from the flatfish fishing bot in FlatMMO.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="surface">
+    <div class="wrap">
+      <a class="logo" href="#/">Flatfish's Pond</a>
+      <p class="tagline">Every catch from the <span id="bot-name">flatfish</span> fishing bot in FlatMMO.</p>
+      <form class="search" id="search" role="search" autocomplete="off">
+        <label for="q">Look up an angler</label>
+        <div class="search-row">
+          <input id="q" name="q" type="search" placeholder="Player name" spellcheck="false" aria-describedby="search-hint">
+          <button type="submit">Find</button>
+        </div>
+        <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+        <p class="hint" id="search-hint">Type at least 2 letters.</p>
+      </form>
+      <div class="live" id="live" aria-live="polite"></div>
+    </div>
+    <svg class="waves" viewBox="0 0 1200 40" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 20 Q 75 0 150 20 T 300 20 T 450 20 T 600 20 T 750 20 T 900 20 T 1050 20 T 1200 20 V40 H0Z"/>
+    </svg>
+  </header>
+
+  <main id="main" class="deep">
+    <div class="wrap" id="view"><p class="loading">Casting a line…</p></div>
+  </main>
+
+  <footer class="lakebed">
+    <div class="wrap">
+      <p>A fan-made minigame bot. Points and fish here are bot points, not real FlatMMO items.</p>
+      <p id="source-note"></p>
+    </div>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="game-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

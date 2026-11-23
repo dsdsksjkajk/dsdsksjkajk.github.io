@@ -1,0 +1,189 @@
+/* Flatfish's Pond: a lake, from the bright surface down to the sandy bed. */
+:root {
+  --shallow: #a8dccf;     /* surface water */
+  --shallow-ink: #0f3b40;
+  --mid: #2a6f78;         /* mid water */
+  --deep: #123b4a;        /* deep water (main area) */
+  --deeper: #0c2b37;      /* inside the tank */
+  --sand: #e8d6a3;        /* lakebed */
+  --sand-ink: #4a3d22;
+  --foam: #effaf6;        /* text on deep water */
+  --mist: #a9c9cc;        /* quiet text on deep water */
+
+  --junk: #9a8f80;
+  --common: #c9d9d3;
+  --uncommon: #7cc47f;
+  --rare: #5aa2e6;
+  --epic: #b67ee3;
+  --legendary: #f3b63a;
+
+  --pixel: "Pixelify Sans", "Courier New", monospace;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --r-small: 6px;
+  --r-tank: 14px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--deep);
+  color: var(--foam);
+  font: 1.0625rem/1.55 var(--body);
+}
+.wrap { width: min(960px, 100% - 2rem); margin-inline: auto; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--legendary); outline-offset: 2px; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--foam); color: var(--deep); padding: .5rem 1rem; z-index: 10; }
+
+/* ---------- surface ---------- */
+.surface {
+  position: relative;
+  background: linear-gradient(var(--shallow), #8fcfc2);
+  color: var(--shallow-ink);
+  padding: 2.5rem 0 3.5rem;
+}
+.logo {
+  display: inline-block;
+  font: 600 clamp(2.2rem, 6vw, 3.6rem)/1 var(--pixel);
+  text-decoration: none;
+  letter-spacing: .01em;
+}
+.tagline { margin: .5rem 0 1.5rem; max-width: 46ch; }
+.waves { position: absolute; left: 0; bottom: -1px; width: 100%; height: 40px; fill: var(--deep); }
+
+.search { position: relative; max-width: 30rem; }
+.search label { display: block; font: 600 1.1rem var(--pixel); margin-bottom: .35rem; }
+.search-row { display: flex; gap: .5rem; }
+.search input {
+  flex: 1; min-width: 0;
+  font: inherit; padding: .65rem .8rem;
+  border: 2px solid var(--shallow-ink); border-radius: var(--r-small);
+  background: #fff; color: var(--shallow-ink);
+}
+.search button, .btn {
+  font: 600 1rem var(--pixel); padding: .6rem 1.1rem; cursor: pointer;
+  border: 2px solid var(--shallow-ink); border-radius: var(--r-small);
+  background: var(--shallow-ink); color: var(--shallow);
+}
+.search button:hover, .btn:hover { background: var(--mid); }
+.hint { font-size: .9rem; margin: .35rem 0 0; opacity: .8; }
+.suggest {
+  position: absolute; z-index: 5; left: 0; right: 0; top: 4.6rem;
+  list-style: none; margin: 0; padding: .25rem;
+  background: #fff; border: 2px solid var(--shallow-ink); border-radius: var(--r-small);
+}
+.suggest li a { display: block; padding: .45rem .6rem; text-decoration: none; border-radius: 4px; }
+.suggest li a:hover, .suggest li a:focus { background: var(--shallow); }
+
+/* live event strip */
+.live:empty { display: none; }
+.live {
+  margin-top: 1.5rem; padding: .8rem 1rem;
+  border-radius: var(--r-small);
+  background: rgba(255, 255, 255, .55);
+  border-left: 6px solid var(--shallow-ink);
+}
+.live.golden { border-left-color: var(--legendary); background: #fff3cf; }
+.live.boss { border-left-color: #c0504d; background: #fbe3e0; }
+.live.contest { border-left-color: var(--rare); background: #e1effc; }
+.live strong { font-family: var(--pixel); font-size: 1.15rem; }
+.hp { height: 12px; margin: .5rem 0 .2rem; background: #f3c5c0; border-radius: 6px; overflow: hidden; }
+.hp > span { display: block; height: 100%; background: #c0504d; }
+.status-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .35rem; vertical-align: middle; background: #888; }
+.status-dot.on { background: #2f9e44; }
+
+/* ---------- deep water ---------- */
+.deep { padding: 1rem 0 4rem; min-height: 50vh; }
+h1, h2, h3 { font-family: var(--pixel); font-weight: 600; line-height: 1.15; }
+h1 { font-size: clamp(1.9rem, 5vw, 2.8rem); margin: 1rem 0 .25rem; }
+h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
+.title-line { color: var(--legendary); font-family: var(--pixel); font-size: 1.15rem; margin: 0 0 1.25rem; }
+.loading, .empty { color: var(--mist); }
+.error { background: #4a2228; border-left: 6px solid #e5736b; padding: 1rem; border-radius: var(--r-small); }
+.back { display: inline-block; margin-top: 1rem; color: var(--mist); }
+
+/* stat line: quiet numbers, not cards */
+.stats { display: flex; flex-wrap: wrap; gap: 1.25rem 2.25rem; margin: 0; padding: 0; }
+.stats div { min-width: 6.5rem; }
+.stats dt { color: var(--mist); font-size: .9rem; }
+.stats dd { margin: 0; font: 600 1.6rem var(--pixel); }
+
+/* leaderboard */
+.board { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
+.board li { display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: baseline; gap: .75rem; padding: .55rem .25rem; border-bottom: 1px solid rgba(169, 201, 204, .2); }
+.board .pos { font: 600 1.2rem var(--pixel); color: var(--mist); }
+.board li:nth-child(1) .pos { color: var(--legendary); }
+.board li:nth-child(2) .pos { color: var(--common); }
+.board li:nth-child(3) .pos { color: #d79a62; }
+.board a { font-weight: 700; text-decoration: none; }
+.board a:hover { text-decoration: underline; }
+.board .t { color: var(--legendary); font-size: .9rem; margin-left: .4rem; }
+.board .pts { font: 600 1.15rem var(--pixel); }
+
+/* ---------- the tank (the memorable bit) ---------- */
+.tank {
+  position: relative;
+  height: clamp(260px, 42vw, 380px);
+  border-radius: var(--r-tank);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(168, 220, 207, .28), transparent 60%),
+    linear-gradient(#1d5865, var(--deeper) 75%);
+  border: 6px solid #0a2029;
+  box-shadow: inset 0 0 0 2px rgba(168, 220, 207, .25);
+}
+.tank::after { /* sandy floor */
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 34px;
+  background:
+    radial-gradient(circle at 10% 30%, #d8c48d 0 3px, transparent 4px),
+    radial-gradient(circle at 55% 60%, #d8c48d 0 3px, transparent 4px),
+    radial-gradient(circle at 80% 35%, #d8c48d 0 2px, transparent 3px),
+    var(--sand);
+}
+.tank .weed { position: absolute; bottom: 26px; width: 10px; background: #3f8f5a; border-radius: 6px 6px 0 0; transform-origin: bottom; }
+.tank .fish { position: absolute; left: -20%; image-rendering: pixelated; animation: swim linear infinite; }
+.tank .fish.left { animation-direction: reverse; }
+.tank .fish svg { display: block; width: 100%; height: auto; }
+.tank .fish.left svg { transform: scaleX(-1); }
+.tank .fish.legendary { filter: drop-shadow(0 0 6px rgba(243, 182, 58, .8)); }
+.tank .junkpile { position: absolute; bottom: 30px; display: flex; gap: 6px; z-index: 1; }
+.tank .junkpile span { width: 14px; height: 10px; background: var(--junk); border-radius: 2px; }
+.tank .chest { position: absolute; right: 22px; bottom: 30px; z-index: 1; display: flex; align-items: flex-end; gap: 6px; font: 600 .95rem var(--pixel); color: var(--sand); }
+.tank .chest i { display: block; width: 34px; height: 24px; background: #8a5a2b; border: 3px solid #5b3a1a; border-radius: 4px 4px 2px 2px; box-shadow: inset 0 6px 0 #a06a35; }
+.tank-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--mist); padding: 2rem; z-index: 2; }
+@keyframes swim {
+  from { left: -20%; }
+  to   { left: 108%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tank .fish { animation: none; left: var(--rest); }
+  html { scroll-behavior: auto; }
+}
+
+/* species list under the tank */
+.legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; margin: .8rem 0 0; color: var(--mist); font-size: .92rem; }
+.legend span::before { content: ""; display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; background: var(--c); }
+.species { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0 1.5rem; margin-top: .5rem; }
+.species h3 { grid-column: 1 / -1; font-size: 1.15rem; margin: 1.4rem 0 .3rem; color: var(--c); }
+.sp { display: flex; justify-content: space-between; gap: .75rem; padding: .35rem 0; border-bottom: 1px dashed rgba(169, 201, 204, .25); }
+.sp .w { color: var(--mist); font-size: .92rem; white-space: nowrap; }
+.sp.missing .n { color: #5d8088; letter-spacing: .12em; }
+
+/* achievements */
+.achs { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .6rem 1.5rem; }
+.achs li { padding: .5rem 0 .5rem .9rem; border-left: 4px solid var(--legendary); }
+.achs li.locked { border-left-color: #3a5c66; color: #7e9ea5; }
+.achs b { font-family: var(--pixel); font-weight: 600; font-size: 1.05rem; display: block; }
+.achs small { font-size: .9rem; }
+
+/* ---------- lakebed ---------- */
+.lakebed { background: var(--sand); color: var(--sand-ink); padding: 1.5rem 0 2rem; font-size: .95rem; }
+.lakebed p { margin: .25rem 0; max-width: 70ch; }
+
+@media (max-width: 560px) {
+  .surface { padding-top: 1.75rem; }
+  .stats dd { font-size: 1.35rem; }
+  .board li { grid-template-columns: 2rem 1fr auto; }
+}
