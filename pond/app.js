@@ -43,6 +43,41 @@
     return res.json();
   }
 
+  // Gets every row, 1000 at a time (Supabase's page size)
+  async function apiAll(path) {
+    const out = [];
+    for (let offset = 0; offset < 50000; offset += 1000) {
+      const rows = await api(`${path}&limit=1000&offset=${offset}`);
+      out.push(...rows);
+      if (rows.length < 1000) break;
+    }
+    return out;
+  }
+
+  // ---------- "this is me" (remembered in this browser only) ----------
+  const ME_KEY = "pond-me";
+  const getMe = () => {
+    try {
+      return localStorage.getItem(ME_KEY) || "";
+    } catch {
+      return "";
+    }
+  };
+  const setMe = (name) => {
+    try {
+      name ? localStorage.setItem(ME_KEY, name) : localStorage.removeItem(ME_KEY);
+    } catch {}
+    updateMeLink();
+  };
+  function updateMeLink() {
+    const a = $("#me-link");
+    if (!a) return;
+    const me = getMe();
+    a.hidden = !me;
+    if (me) a.href = profileLink(me);
+  }
+  updateMeLink();
+
   const demo = makeDemo();
   const data = {
     top: () => (DEMO ? demo.top() : api("players?select=name,display,title,points,contest_wins&points=gt.0&order=points.desc&limit=20")),
@@ -63,6 +98,17 @@
     search: (q) =>
       DEMO ? demo.search(q) : api(`players?select=name,display,title&display=ilike.*${encodeURIComponent(q)}*&order=points.desc&limit=8`),
     live: async () => (DEMO ? demo.live() : ((await api("live?id=eq.1&select=data"))[0] || {}).data || null),
+    // Leaderboards by a player column (points, contest_wins, boss_kills)
+    board: (col) =>
+      DEMO
+        ? demo.board(col)
+        : api(`players?select=name,display,title,points,contest_wins,boss_kills&${col}=gt.0&order=${col}.desc&limit=20`),
+    // Every player's best catch of every species (for records and the species leaderboard)
+    aquariumAll: () => (DEMO ? demo.aquariumAll() : apiAll("aquarium?select=player,fish,rarity,caught,best_weight&order=player.asc,fish.asc")),
+    names: (list) =>
+      DEMO || !list.length
+        ? Promise.resolve(DEMO ? demo.names(list) : [])
+        : api(`players?select=name,display,title&name=in.(${list.map(encodeURIComponent).join(",")})`),
     stats: () =>
       DEMO
         ? demo.stats()
@@ -152,38 +198,66 @@
   }
 
   // ---------- pages ----------
-  async function renderHome() {
-    document.title = "Flatfish's Pond: FlatMMO fishing";
-    view.innerHTML = `<p class="loading">Casting a line…</p>`;
-    const [top, recent, history, live, stats] = await Promise.all([
-      data.top(),
+  // Each page has load() (fetch data) and draw(data). Auto-refresh re-runs load()
+  // and only redraws if the data actually changed, so the fish don't jump around.
+  const BOARDS = [
+    { key: "points", label: "Points", col: "points", value: (p) => num(p.points) },
+    { key: "species", label: "Species", value: (p) => `${num(p.species)}/${Object.values(GAME.fish).flat().length}` },
+    { key: "trophies", label: "Trophies", col: "contest_wins", value: (p) => `🏆 ${num(p.contest_wins)}` },
+    { key: "bosses", label: "Bosses beaten", col: "boss_kills", value: (p) => num(p.boss_kills) },
+  ];
+  let boardTab = "points";
+
+  async function loadBoard(tab) {
+    const b = BOARDS.find((x) => x.key === tab) || BOARDS[0];
+    if (b.col) return data.board(b.col);
+    // Species: count distinct species per player from everyone's aquariums
+    const rows = await data.aquariumAll();
+    const counts = new Map();
+    for (const r of rows) counts.set(r.player, (counts.get(r.player) || 0) + 1);
+    const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 20);
+    const named = new Map((await data.names(top.map(([n]) => n))).map((p) => [p.name, p]));
+    return top.map(([name, species]) => ({ name, display: (named.get(name) || {}).display || name, title: (named.get(name) || {}).title, species }));
+  }
+
+  function boardHTML(rows, tab, champ) {
+    const b = BOARDS.find((x) => x.key === tab) || BOARDS[0];
+    if (!rows.length) return `<p class="empty">${tab === "points" ? "Nobody has fished yet. Type -fish in FlatMMO to be the first." : "Nobody is on this board yet."}</p>`;
+    return `<ol class="board">${rows
+      .map(
+        (p, i) => `<li><span class="pos">${i + 1}</span>
+          <span>${champ && champ.name === p.name ? `<span class="crown" title="Reigning contest champion">👑</span>` : ""}<a href="${profileLink(p.name)}">${esc(p.display)}</a>${p.title ? `<span class="t">the ${esc(p.title)}</span>` : ""}${tab === "points" && p.contest_wins ? `<span class="trophy" title="Contest trophies">🏆${num(p.contest_wins)}</span>` : ""}</span>
+          <span class="pts">${b.value(p)}</span></li>`
+      )
+      .join("")}</ol>`;
+  }
+
+  async function loadHome() {
+    const [board, recent, history, live, stats] = await Promise.all([
+      loadBoard(boardTab),
       data.recent(),
       data.history(),
       data.live().catch(() => null),
       data.stats().catch(() => null),
     ]);
-    const champ = live && live.champion;
-    const board = top.length
-      ? `<ol class="board">${top
-          .map(
-            (p, i) => `<li><span class="pos">${i + 1}</span>
-              <span>${champ && champ.name === p.name ? `<span class="crown" title="Reigning contest champion">👑</span>` : ""}<a href="${profileLink(p.name)}">${esc(p.display)}</a>${p.title ? `<span class="t">the ${esc(p.title)}</span>` : ""}${p.contest_wins ? `<span class="trophy" title="Contest trophies">🏆${num(p.contest_wins)}</span>` : ""}</span>
-              <span class="pts">${num(p.points)}</span></li>`
-          )
-          .join("")}</ol>`
-      : `<p class="empty">Nobody has fished yet. Type -fish in FlatMMO to be the first.</p>`;
-    const big = recent.length
-      ? `<ul class="achs">${recent
+    return { board, recent, history, champion: live && live.champion, stats, tab: boardTab };
+  }
+
+  function drawHome(d) {
+    document.title = "Flatfish's Pond: FlatMMO fishing";
+    const champ = d.champion;
+    const big = d.recent.length
+      ? `<ul class="achs">${d.recent
           .map(
             (c) => `<li style="border-left-color:${color(c.rarity)}"><b>${esc(c.fish)}</b>
               <small>${kg(c.weight)} ${c.rarity} caught by <a href="${profileLink(c.player)}">${esc(c.player)}</a>${c.caught_at ? `, ${caughtAgo(c.caught_at)}` : ""}</small></li>`
           )
           .join("")}</ul>`
       : `<p class="empty">No Epic or Legendary catches yet.</p>`;
-    const hall = history.length
+    const hall = d.history.length
       ? `<h2>Hall of Champions</h2>
         ${champ ? `<p class="reigning">👑 <a href="${profileLink(champ.name)}">${esc(champ.display)}</a> holds the crown, won with a ${num(champ.points)}pt ${esc(champ.fish)}.</p>` : ""}
-        <ol class="hall">${history
+        <ol class="hall">${d.history
           .map(
             (h) => `<li><a href="${profileLink(h.winner)}">${esc(h.display)}</a>
               <span>${esc(h.fish)}, ${kg(h.weight)} (${num(h.points)}pts) against ${h.entrants - 1} ${h.entrants === 2 ? "rival" : "rivals"}</span>
@@ -192,8 +266,8 @@
           .join("")}</ol>`
       : "";
     const bot = esc(CFG.BOT_NAME || "flatfish");
-    const pondStats = stats
-      ? `<p class="pond-stats"><b>${num(stats.fish)}</b> fish caught by <b>${num(stats.anglers)}</b> ${stats.anglers === 1 ? "angler" : "anglers"}, <b>${num(stats.legendary)}</b> of them Legendary.</p>`
+    const pondStats = d.stats
+      ? `<p class="pond-stats"><b>${num(d.stats.fish)}</b> fish caught by <b>${num(d.stats.anglers)}</b> ${d.stats.anglers === 1 ? "angler" : "anglers"}, <b>${num(d.stats.legendary)}</b> of them Legendary.</p>`
       : "";
     const newHere = `
       <section class="new-here" aria-labelledby="new-here">
@@ -206,17 +280,73 @@
           <div><dt><code>/pm ${bot} -help</code></dt><dd>Every command, plus boss fights, contests and titles.</dd></div>
         </dl>
       </section>`;
-    view.innerHTML = `${pondStats}${newHere}<h2>Top anglers</h2>${board}${hall}<h2>Latest big catches</h2>${big}`;
+    const tabs = `<div class="tabs" role="tablist" aria-label="Leaderboards">${BOARDS.map(
+      (b) => `<button role="tab" type="button" data-tab="${b.key}" aria-selected="${b.key === d.tab}">${b.label}</button>`
+    ).join("")}</div>`;
+    view.innerHTML = `${pondStats}${newHere}<h2>Top anglers</h2>${tabs}<div id="board">${boardHTML(d.board, d.tab, champ)}</div>${hall}<h2>Latest big catches</h2>${big}`;
+    view.querySelectorAll(".tabs button").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        if (btn.dataset.tab === boardTab) return;
+        boardTab = btn.dataset.tab;
+        view.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", String(x === btn)));
+        const box = $("#board");
+        box.innerHTML = `<p class="loading">Counting fish…</p>`;
+        try {
+          box.innerHTML = boardHTML(await loadBoard(boardTab), boardTab, champ);
+        } catch (e) {
+          box.innerHTML = `<p class="empty">Couldn't load this leaderboard. ${esc(e.message)}</p>`;
+        }
+      })
+    );
   }
 
-  async function renderPlayer(name) {
-    view.innerHTML = `<p class="loading">Looking for ${esc(name)}…</p>`;
-    const p = await data.player(name);
-    if (!p) {
-      view.innerHTML = `<h1>${esc(name)}</h1><p class="empty">This angler hasn't fished yet. Names must match exactly as they appear in FlatMMO.</p><a class="back" href="#/">Back to the leaderboard</a>`;
-      return;
+  // ---------- world records ----------
+  async function loadRecords() {
+    const rows = await data.aquariumAll();
+    const best = new Map(); // fish -> { player, weight }
+    const anglers = new Map(); // fish -> how many players caught it
+    for (const r of rows) {
+      anglers.set(r.fish, (anglers.get(r.fish) || 0) + 1);
+      const b = best.get(r.fish);
+      if (!b || r.best_weight > b.weight) best.set(r.fish, { player: r.player, weight: r.best_weight });
     }
-    document.title = `${p.display}'s aquarium: Flatfish's Pond`;
+    const holders = [...new Set([...best.values()].map((b) => b.player))];
+    const named = Object.fromEntries((await data.names(holders)).map((p) => [p.name, p.display]));
+    return {
+      records: Object.fromEntries([...best].map(([fish, b]) => [fish, { ...b, display: named[b.player] || b.player, anglers: anglers.get(fish) }])),
+    };
+  }
+
+  function drawRecords(d) {
+    document.title = "World records: Flatfish's Pond";
+    const total = Object.values(GAME.fish).flat().length;
+    const found = Object.keys(d.records).length;
+    const groups = GAME.rarities
+      .map((r) => {
+        const rows = GAME.fish[r]
+          .map((f) => {
+            const rec = d.records[f];
+            return rec
+              ? `<li><span class="rn">${esc(f)}</span><span class="rk">${kg(rec.weight)}</span>
+                  <span class="rh"><a href="${profileLink(rec.player)}">${esc(rec.display)}</a></span>
+                  <span class="ra">${rec.anglers} ${rec.anglers === 1 ? "angler has" : "anglers have"} caught one</span></li>`
+              : `<li class="missing"><span class="rn">???</span><span class="rk">-</span><span class="rh">nobody yet</span><span class="ra">be the first!</span></li>`;
+          })
+          .join("");
+        return `<h3 style="--c:var(${RARITY_VAR[r]})">${r}</h3><ol class="records">${rows}</ol>`;
+      })
+      .join("");
+    view.innerHTML = `
+      <a class="back" href="#/">Back to the leaderboard</a>
+      <h1>World records</h1>
+      <p class="lede">The heaviest catch of every species, and who holds it. ${found} of ${total} species found so far.</p>
+      <div class="records-wrap">${groups}</div>`;
+  }
+
+  // ---------- player profile ----------
+  async function loadPlayer(name) {
+    const p = await data.player(name);
+    if (!p) return { missing: name };
     const [rank, tank, achRows, live, recentCatches] = await Promise.all([
       data.rank(p.points),
       data.aquarium(p.name),
@@ -224,11 +354,21 @@
       data.live().catch(() => null),
       data.catches(p.name).catch(() => []),
     ]);
-    const isChamp = live && live.champion && live.champion.name === p.name;
+    return { p, rank, tank, achRows, champion: live && live.champion, recentCatches };
+  }
+
+  function drawPlayer(d) {
+    if (d.missing) {
+      view.innerHTML = `<h1>${esc(d.missing)}</h1><p class="empty">This angler hasn't fished yet. Names must match exactly as they appear in FlatMMO.</p><a class="back" href="#/">Back to the leaderboard</a>`;
+      return;
+    }
+    const { p, rank, tank, achRows, recentCatches } = d;
+    document.title = `${p.display}'s aquarium: Flatfish's Pond`;
+    const isChamp = d.champion && d.champion.name === p.name;
     const caught = new Map(tank.map((t) => [t.fish, t]));
-    const junk = tank.filter((t) => t.rarity === "Junk").reduce((n, t) => n + t.caught, 0);
     const species = Object.values(GAME.fish).flat().length;
     const have = new Set(achRows.map((a) => a.key));
+    const isMe = getMe() === p.name;
 
     const stats = [
       ["Points", num(p.points)],
@@ -266,7 +406,10 @@
 
     view.innerHTML = `
       <a class="back" href="#/">Back to the leaderboard</a>
-      <h1>${esc(p.display)}</h1>
+      <div class="name-row">
+        <h1>${esc(p.display)}</h1>
+        <button type="button" class="me-btn" id="me-btn" aria-pressed="${isMe}">${isMe ? "This is you" : "This is me"}</button>
+      </div>
       <p class="title-line">${p.title ? `the ${esc(p.title)}` : ""}${isChamp ? `${p.title ? ", " : ""}👑 Reigning contest champion` : ""}</p>
       <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
       <h2>Aquarium</h2>
@@ -285,6 +428,15 @@
       <h2>Achievements <small style="font-size:1rem;color:var(--mist)">${have.size}/${GAME.achievements.length}</small></h2>
       <ul class="achs">${achs}</ul>`;
     fillTank($("#tank"), tank.filter((t) => t.rarity !== "Junk"), tank.filter((t) => t.rarity === "Junk"), p.chests);
+
+    const btn = $("#me-btn");
+    btn.addEventListener("click", () => {
+      const nowMe = getMe() === p.name;
+      setMe(nowMe ? "" : p.name);
+      btn.textContent = nowMe ? "This is me" : "This is you";
+      btn.setAttribute("aria-pressed", String(!nowMe));
+    });
+    btn.title = isMe ? "Click to forget" : "Remember me in this browser, for a quick My aquarium link";
   }
 
   function fillTank(el, fish, junkRows, chests) {
@@ -425,22 +577,53 @@
     if (q) location.hash = profileLink(q);
   });
 
-  // ---------- router ----------
-  async function route() {
-    const m = location.hash.match(/^#\/p\/(.+)$/);
+  // ---------- router (+ auto-refresh every minute) ----------
+  function currentPage() {
+    const h = location.hash;
+    const m = h.match(/^#\/p\/(.+)$/);
+    if (m) {
+      const name = cleanName(decodeURIComponent(m[1])).toLowerCase();
+      return { key: `p:${name}`, load: () => loadPlayer(name), draw: drawPlayer };
+    }
+    if (h === "#/records") return { key: "records", load: loadRecords, draw: drawRecords };
+    return { key: "home", load: loadHome, draw: drawHome };
+  }
+  // Only things that change what's drawn (not "bot last checked in at...")
+  const signature = (d) => JSON.stringify(d);
+  let shown = { key: null, sig: null };
+
+  async function route({ refresh = false } = {}) {
+    const page = currentPage();
+    // Highlight the current page in the header
+    document.querySelectorAll(".nav a").forEach((a) => a.removeAttribute("aria-current"));
+    const here = page.key === "records" ? '.nav a[href="#/records"]' : page.key === "home" ? '.nav a[href="#/"]:not(#me-link)' : page.key === `p:${getMe()}` ? "#me-link" : null;
+    if (here && $(here)) $(here).setAttribute("aria-current", "page");
+    if (!refresh) view.innerHTML = `<p class="loading">Casting a line…</p>`;
     try {
-      if (m) await renderPlayer(cleanName(decodeURIComponent(m[1])).toLowerCase());
-      else await renderHome();
+      const d = await page.load();
+      if (page.key !== currentPage().key) return; // they navigated away meanwhile
+      const sig = signature(d);
+      if (refresh && shown.key === page.key && shown.sig === sig) return; // nothing new
+      const y = window.scrollY;
+      page.draw(d);
+      shown = { key: page.key, sig };
+      window.scrollTo(0, refresh ? y : 0);
     } catch (e) {
+      if (refresh) return; // keep showing the last good page
       view.innerHTML = `<div class="error"><p><strong>Couldn't reach the pond's database.</strong> ${esc(e.message)}</p>
         <p>Try again in a minute. If it keeps happening, the Supabase project may be paused: the bot's owner can resume it from the Supabase dashboard.</p></div>`;
     }
-    window.scrollTo(0, 0);
   }
-  window.addEventListener("hashchange", route);
+  window.addEventListener("hashchange", () => route());
   route();
   renderLive();
-  setInterval(renderLive, 60 * 1000);
+  setInterval(() => {
+    if (document.hidden) return;
+    renderLive();
+    // Don't redraw while someone is reading a fish card or typing a search
+    const busy = document.querySelector(".tip:not([hidden])") || document.activeElement === $("#q");
+    if (!busy) route({ refresh: true });
+  }, 60 * 1000);
 
   // ---------- demo data (used when Supabase isn't set up) ----------
   function makeDemo() {
@@ -479,6 +662,9 @@
       player: (n) => delay(players.find((p) => p.name === n) || null),
       rank: (pts) => delay(players.filter((p) => p.points > pts).length + 1),
       aquarium: (n) => delay(tanks[n] || []),
+      aquariumAll: () => delay(Object.values(tanks).flat()),
+      board: (col) => delay([...players].filter((p) => p[col] > 0).sort((a, b) => b[col] - a[col])),
+      names: (list) => players.filter((p) => list.includes(p.name)).map(({ name, display, title }) => ({ name, display, title })),
       catches: (n) =>
         delay(
           (tanks[n] || []).slice(0, 8).map((t, i) => ({ fish: t.fish, rarity: t.rarity, weight: t.best_weight, points: 10 + i * 7, caught_at: Date.now() - (i * i * 17 + 3) * 60000 }))

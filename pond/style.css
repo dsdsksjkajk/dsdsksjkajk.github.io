@@ -67,6 +67,12 @@ a { color: inherit; }
 
 .waves { position: absolute; left: 0; bottom: -1px; width: 100%; height: 40px; fill: var(--deep); }
 
+.nav { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin: -.6rem 0 1.4rem; }
+.nav a { font: 600 1rem var(--pixel); text-decoration: none; border-bottom: 2px solid transparent; }
+.nav a:hover, .nav a[aria-current="page"] { border-bottom-color: currentColor; }
+.nav .me-link { color: #8a5a00; }
+.nav .me-link::before { content: "🐟 "; }
+
 .search { position: relative; max-width: 30rem; }
 .search label { display: block; font: 600 1.1rem var(--pixel); margin-bottom: .35rem; }
 .search-row { display: flex; gap: .5rem; }
@@ -133,6 +139,41 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
 .howto div { padding: .35rem 0; }
 .howto dt code { font: 600 1rem var(--pixel); color: var(--legendary); background: rgba(10, 32, 41, .55); padding: .2rem .5rem; border-radius: 4px; }
 .howto dd { margin: .35rem 0 0; color: var(--mist); font-size: .95rem; }
+
+/* leaderboard tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: -.2rem 0 .6rem; }
+.tabs button {
+  font: 600 .95rem var(--pixel); padding: .35rem .8rem; cursor: pointer;
+  border-radius: 999px; border: 1px solid rgba(169, 201, 204, .35); background: transparent; color: var(--mist);
+}
+.tabs button:hover { color: var(--foam); border-color: var(--mist); }
+.tabs button[aria-selected="true"] { background: var(--foam); color: var(--deep); border-color: var(--foam); }
+
+/* world records */
+.lede { color: var(--mist); margin: 0 0 1rem; max-width: 60ch; }
+.records-wrap h3 { color: var(--c); font-size: 1.15rem; margin: 1.6rem 0 .3rem; }
+.records { list-style: none; margin: 0; padding: 0; max-width: 52rem; }
+.records li { display: grid; grid-template-columns: minmax(9rem, 1.2fr) 6rem minmax(7rem, 1fr) minmax(10rem, 1.3fr); gap: .9rem; align-items: baseline; padding: .45rem 0; border-bottom: 1px solid rgba(169, 201, 204, .18); }
+.records .rn { font-weight: 700; }
+.records .rk { font: 600 1.1rem var(--pixel); text-align: right; }
+.records .rh a { font-weight: 700; }
+.records .ra { color: var(--mist); font-size: .9rem; }
+.records li.missing { color: #5d8088; }
+.records li.missing .rn { letter-spacing: .12em; }
+@media (max-width: 640px) {
+  .records li { grid-template-columns: 1fr auto; row-gap: .1rem; }
+  .records .ra { grid-column: 1 / -1; }
+}
+
+/* profile name + "this is me" */
+.name-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.25rem; }
+.name-row h1 { margin-bottom: .25rem; }
+.me-btn {
+  font: 600 .9rem var(--pixel); padding: .35rem .8rem; cursor: pointer; border-radius: 999px;
+  border: 1px solid rgba(169, 201, 204, .45); background: transparent; color: var(--mist);
+}
+.me-btn:hover { color: var(--foam); border-color: var(--foam); }
+.me-btn[aria-pressed="true"] { background: var(--legendary); border-color: var(--legendary); color: var(--deeper); }
 
 /* leaderboard */
 .board { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
