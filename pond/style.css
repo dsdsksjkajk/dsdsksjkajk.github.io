@@ -38,6 +38,7 @@ a { color: inherit; }
 .skip:focus { left: 1rem; top: 1rem; background: var(--foam); color: var(--deep); padding: .5rem 1rem; z-index: 10; }
 
 /* ---------- surface ---------- */
+.surface > .wrap { position: relative; z-index: 2; } /* keeps content above the fishing line */
 .surface {
   position: relative;
   background: linear-gradient(var(--shallow), #8fcfc2);
@@ -51,6 +52,19 @@ a { color: inherit; }
   letter-spacing: .01em;
 }
 .tagline { margin: .5rem 0 1.5rem; max-width: 46ch; }
+/* a fishing float bobbing on the water line */
+.bobber { position: absolute; right: max(1.5rem, calc((100% - 960px) / 2 + 2rem)); bottom: 20px; width: 22px; height: 150px; z-index: 1; pointer-events: none; }
+.bobber .line { position: absolute; left: 10px; top: 0; bottom: 26px; width: 2px; background: rgba(15, 59, 64, .45); }
+.bobber .float {
+  position: absolute; left: 1px; bottom: 0; width: 20px; height: 28px;
+  background: linear-gradient(#e5534b 0 50%, #fff 50% 100%);
+  border: 2px solid var(--shallow-ink); border-radius: 10px 10px 11px 11px;
+  animation: bob 3.2s ease-in-out infinite;
+}
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(5px) rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .bobber .float { animation: none; } }
+@media (max-width: 700px) { .bobber { display: none; } }
+
 .waves { position: absolute; left: 0; bottom: -1px; width: 100%; height: 40px; fill: var(--deep); }
 
 .search { position: relative; max-width: 30rem; }
@@ -109,6 +123,16 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
 .stats div { min-width: 6.5rem; }
 .stats dt { color: var(--mist); font-size: .9rem; }
 .stats dd { margin: 0; font: 600 1.6rem var(--pixel); }
+
+/* pond stats + new here */
+.pond-stats { margin: 1.25rem 0 0; color: var(--mist); font-size: 1.05rem; }
+.pond-stats b { color: var(--foam); font-family: var(--pixel); font-weight: 600; font-size: 1.25rem; }
+.new-here p { margin: 0 0 .75rem; max-width: 60ch; }
+.howto { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem 2.5rem; margin: 0; max-width: 52rem; }
+@media (max-width: 700px) { .howto { grid-template-columns: 1fr; } }
+.howto div { padding: .35rem 0; }
+.howto dt code { font: 600 1rem var(--pixel); color: var(--legendary); background: rgba(10, 32, 41, .55); padding: .2rem .5rem; border-radius: 4px; }
+.howto dd { margin: .35rem 0 0; color: var(--mist); font-size: .95rem; }
 
 /* leaderboard */
 .board { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
@@ -175,6 +199,19 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
   html { scroll-behavior: auto; }
 }
 
+/* recent catches */
+.recent { list-style: none; margin: 0; padding: 0; max-width: 44rem; }
+.recent li { display: grid; grid-template-columns: 1fr auto auto 5.5rem; gap: .9rem; align-items: baseline; padding: .45rem 0 .45rem .8rem; border-left: 4px solid var(--c); border-bottom: 1px solid rgba(169, 201, 204, .15); }
+.recent .rf { font-weight: 700; }
+.recent .rw, .recent time { color: var(--mist); font-size: .92rem; white-space: nowrap; }
+.recent time { text-align: right; }
+.recent .rp { font: 600 1rem var(--pixel); color: var(--c); }
+@media (max-width: 560px) {
+  .recent li { grid-template-columns: 1fr auto; grid-template-areas: "f p" "w t"; row-gap: .1rem; }
+  .recent .rf { grid-area: f; } .recent .rp { grid-area: p; text-align: right; }
+  .recent .rw { grid-area: w; } .recent time { grid-area: t; }
+}
+
 /* species list under the tank */
 .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; margin: .8rem 0 0; color: var(--mist); font-size: .92rem; }
 .legend span::before { content: ""; display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; background: var(--c); }
@@ -194,6 +231,7 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
 /* ---------- lakebed ---------- */
 .lakebed { background: var(--sand); color: var(--sand-ink); padding: 1.5rem 0 2rem; font-size: .95rem; }
 .lakebed p { margin: .25rem 0; max-width: 70ch; }
+.lakebed a { color: var(--sand-ink); font-weight: 700; }
 
 @media (max-width: 560px) {
   .surface { padding-top: 1.75rem; }

@@ -18,6 +18,14 @@
   const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
   const cleanName = (s) => String(s || "").trim().replace(/[^\w-]/g, "").slice(0, 30);
   const profileLink = (name) => `#/p/${encodeURIComponent(String(name).toLowerCase())}`;
+  const caughtAgo = (t) => {
+    const m = Math.floor((Date.now() - t) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  };
 
   $("#bot-name").textContent = CFG.BOT_NAME || "flatfish";
   $("#source-note").textContent = DEMO
@@ -47,10 +55,22 @@
       DEMO ? demo.player(name) : (await api(`players?name=eq.${encodeURIComponent(name)}&select=*`))[0] || null,
     rank: (points) => (DEMO ? demo.rank(points) : api(`players?select=name&points=gt.${Number(points) || 0}`, { count: true }).then((n) => n + 1)),
     aquarium: (name) => (DEMO ? demo.aquarium(name) : api(`aquarium?player=eq.${encodeURIComponent(name)}&select=*`)),
+    catches: (name) =>
+      DEMO
+        ? demo.catches(name)
+        : api(`catches?player=eq.${encodeURIComponent(name)}&select=fish,rarity,weight,points,caught_at&order=id.desc&limit=8`),
     achievements: (name) => (DEMO ? demo.achievements(name) : api(`achievements?player=eq.${encodeURIComponent(name)}&select=key`)),
     search: (q) =>
       DEMO ? demo.search(q) : api(`players?select=name,display,title&display=ilike.*${encodeURIComponent(q)}*&order=points.desc&limit=8`),
     live: async () => (DEMO ? demo.live() : ((await api("live?id=eq.1&select=data"))[0] || {}).data || null),
+    stats: () =>
+      DEMO
+        ? demo.stats()
+        : Promise.all([
+            api("players?select=name&casts=gt.0", { count: true }),
+            api("catches?select=id", { count: true }),
+            api("catches?select=id&rarity=eq.Legendary", { count: true }),
+          ]).then(([anglers, fish, legendary]) => ({ anglers, fish, legendary })),
   };
 
   // ---------- pixel fish ----------
@@ -135,11 +155,12 @@
   async function renderHome() {
     document.title = "Flatfish's Pond: FlatMMO fishing";
     view.innerHTML = `<p class="loading">Casting a line…</p>`;
-    const [top, recent, history, live] = await Promise.all([
+    const [top, recent, history, live, stats] = await Promise.all([
       data.top(),
       data.recent(),
       data.history(),
       data.live().catch(() => null),
+      data.stats().catch(() => null),
     ]);
     const champ = live && live.champion;
     const board = top.length
@@ -155,7 +176,7 @@
       ? `<ul class="achs">${recent
           .map(
             (c) => `<li style="border-left-color:${color(c.rarity)}"><b>${esc(c.fish)}</b>
-              <small>${kg(c.weight)} ${c.rarity} caught by <a href="${profileLink(c.player)}">${esc(c.player)}</a></small></li>`
+              <small>${kg(c.weight)} ${c.rarity} caught by <a href="${profileLink(c.player)}">${esc(c.player)}</a>${c.caught_at ? `, ${caughtAgo(c.caught_at)}` : ""}</small></li>`
           )
           .join("")}</ul>`
       : `<p class="empty">No Epic or Legendary catches yet.</p>`;
@@ -170,7 +191,22 @@
           )
           .join("")}</ol>`
       : "";
-    view.innerHTML = `<h2>Top anglers</h2>${board}${hall}<h2>Latest big catches</h2>${big}`;
+    const bot = esc(CFG.BOT_NAME || "flatfish");
+    const pondStats = stats
+      ? `<p class="pond-stats"><b>${num(stats.fish)}</b> fish caught by <b>${num(stats.anglers)}</b> ${stats.anglers === 1 ? "angler" : "anglers"}, <b>${num(stats.legendary)}</b> of them Legendary.</p>`
+      : "";
+    const newHere = `
+      <section class="new-here" aria-labelledby="new-here">
+        <h2 id="new-here">New here?</h2>
+        <p>Everything happens in FlatMMO chat. Send ${bot} a private message, or type next to it:</p>
+        <dl class="howto">
+          <div><dt><code>/pm ${bot} -fish</code></dt><dd>Cast a line, once a minute. Every catch swims into your aquarium here.</dd></div>
+          <div><dt><code>/pm ${bot} -daily</code></dt><dd>Free points and coins every day. Keep a streak going for a bigger bonus.</dd></div>
+          <div><dt><code>/pm ${bot} -shop</code></dt><dd>Better rods and bait mean fewer old boots and more rare fish.</dd></div>
+          <div><dt><code>/pm ${bot} -help</code></dt><dd>Every command, plus boss fights, contests and titles.</dd></div>
+        </dl>
+      </section>`;
+    view.innerHTML = `${pondStats}${newHere}<h2>Top anglers</h2>${board}${hall}<h2>Latest big catches</h2>${big}`;
   }
 
   async function renderPlayer(name) {
@@ -181,11 +217,12 @@
       return;
     }
     document.title = `${p.display}'s aquarium: Flatfish's Pond`;
-    const [rank, tank, achRows, live] = await Promise.all([
+    const [rank, tank, achRows, live, recentCatches] = await Promise.all([
       data.rank(p.points),
       data.aquarium(p.name),
       data.achievements(p.name),
       data.live().catch(() => null),
+      data.catches(p.name).catch(() => []),
     ]);
     const isChamp = live && live.champion && live.champion.name === p.name;
     const caught = new Map(tank.map((t) => [t.fish, t]));
@@ -235,6 +272,14 @@
       <h2>Aquarium</h2>
       <div class="tank" id="tank" role="img" aria-label="${esc(p.display)}'s aquarium with ${caught.size} species"></div>
       <p class="legend">${RARITY_ORDER.map((r) => `<span style="--c:var(${RARITY_VAR[r]})">${r}</span>`).join("")}</p>
+      ${recentCatches.length ? `<h2>Recent catches</h2>
+      <ol class="recent">${recentCatches
+        .map(
+          (c) => `<li style="--c:var(${RARITY_VAR[c.rarity] || "--common"})"><span class="rf">${esc(c.fish)}</span>
+            <span class="rw">${kg(c.weight)}, ${c.rarity}</span><span class="rp">+${num(c.points)}</span>
+            <time datetime="${new Date(c.caught_at).toISOString()}">${caughtAgo(c.caught_at)}</time></li>`
+        )
+        .join("")}</ol>` : ""}
       <h2>Species found</h2>
       <div class="species">${list}</div>
       <h2>Achievements <small style="font-size:1rem;color:var(--mist)">${have.size}/${GAME.achievements.length}</small></h2>
@@ -361,17 +406,23 @@
         { winner: "snygget", display: "snygget", fish: "Golden Carp", weight: 7.7, points: 88, entrants: 2, ended_at: Date.now() - 52 * 3600000 },
       ]),
       recent: () => delay([
-        { player: "winton", fish: "Baby Kraken", rarity: "Legendary", weight: 412.5 },
-        { player: "dsdsksjkajk", fish: "Great White Shark", rarity: "Epic", weight: 880 },
-        { player: "bobek", fish: "Manta Ray", rarity: "Epic", weight: 1012 },
-        { player: "pietateip", fish: "Moonlight Koi", rarity: "Legendary", weight: 12.3 },
+        { player: "winton", fish: "Baby Kraken", rarity: "Legendary", weight: 412.5, caught_at: Date.now() - 25 * 60000 },
+        { player: "dsdsksjkajk", fish: "Great White Shark", rarity: "Epic", weight: 880, caught_at: Date.now() - 3 * 3600000 },
+        { player: "bobek", fish: "Manta Ray", rarity: "Epic", weight: 1012, caught_at: Date.now() - 9 * 3600000 },
+        { player: "pietateip", fish: "Moonlight Koi", rarity: "Legendary", weight: 12.3, caught_at: Date.now() - 2 * 86400000 },
       ]),
       player: (n) => delay(players.find((p) => p.name === n) || null),
       rank: (pts) => delay(players.filter((p) => p.points > pts).length + 1),
       aquarium: (n) => delay(tanks[n] || []),
+      catches: (n) =>
+        delay(
+          (tanks[n] || []).slice(0, 8).map((t, i) => ({ fish: t.fish, rarity: t.rarity, weight: t.best_weight, points: 10 + i * 7, caught_at: Date.now() - (i * i * 17 + 3) * 60000 }))
+        ),
       achievements: (n) => delay(GAME.achievements.filter((a, i) => (hash(n + a.key) % 3) === 0 || i === 0).map((a) => ({ key: a.key }))),
       search: (q) => delay(players.filter((p) => p.name.includes(q.toLowerCase())).slice(0, 8)),
-      live: () => delay({ online: true, at: Date.now(), champion: { name: "winton", display: "winton", fish: "Giant Squid", points: 214, trophies: 2 }, event: { type: "boss", name: "The Leviathan", hp: 3420, maxHp: 7500, endsAt: Date.now() + 17 * 60000, top: [{ name: "winton", dmg: 1840 }, { name: "dsdsksjkajk", dmg: 1310 }, { name: "bobek", dmg: 930 }] } }),
+      stats: () => delay({ anglers: players.length, fish: players.reduce((n, p) => n + p.casts, 0), legendary: 23 }),
+      live: () => delay({ online: true, at: Date.now(),
+        champion: { name: "winton", display: "winton", fish: "Giant Squid", points: 214, trophies: 2 }, event: { type: "boss", name: "The Leviathan", hp: 3420, maxHp: 7500, endsAt: Date.now() + 17 * 60000, top: [{ name: "winton", dmg: 1840 }, { name: "dsdsksjkajk", dmg: 1310 }, { name: "bobek", dmg: 930 }] } }),
     };
   }
 })();
