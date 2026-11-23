@@ -271,7 +271,7 @@
       <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
       <h2>Aquarium</h2>
       <div class="tank" id="tank" role="img" aria-label="${esc(p.display)}'s aquarium with ${caught.size} species"></div>
-      <p class="legend">${RARITY_ORDER.map((r) => `<span style="--c:var(${RARITY_VAR[r]})">${r}</span>`).join("")}</p>
+      <p class="legend">${RARITY_ORDER.map((r) => `<span style="--c:var(${RARITY_VAR[r]})">${r}</span>`).join("")}<em class="tank-hint">${matchMedia("(hover: hover)").matches ? "Hover" : "Tap"} a fish to see its stats</em></p>
       ${recentCatches.length ? `<h2>Recent catches</h2>
       <ol class="recent">${recentCatches
         .map(
@@ -284,10 +284,10 @@
       <div class="species">${list}</div>
       <h2>Achievements <small style="font-size:1rem;color:var(--mist)">${have.size}/${GAME.achievements.length}</small></h2>
       <ul class="achs">${achs}</ul>`;
-    fillTank($("#tank"), tank.filter((t) => t.rarity !== "Junk"), junk, p.chests);
+    fillTank($("#tank"), tank.filter((t) => t.rarity !== "Junk"), tank.filter((t) => t.rarity === "Junk"), p.chests);
   }
 
-  function fillTank(el, fish, junk, chests) {
+  function fillTank(el, fish, junkRows, chests) {
     // seaweed
     for (let i = 0; i < 6; i++) {
       const w = document.createElement("span");
@@ -299,6 +299,56 @@
     if (fish.length === 0) {
       el.insertAdjacentHTML("beforeend", `<div class="tank-empty">No fish yet. Catch some with -fish and they'll swim here.</div>`);
     }
+
+    // ---- stat card shown on hover, tap or keyboard focus ----
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.setAttribute("role", "tooltip");
+    tip.hidden = true;
+    el.appendChild(tip);
+    let current = null;
+    let shownAt = 0;
+    function show(target, html) {
+      shownAt = Date.now();
+      if (current && current !== target) current.classList.remove("hover");
+      current = target;
+      target.classList.add("hover"); // pauses the fish so the card stays put
+      tip.innerHTML = html;
+      tip.hidden = false;
+      const box = el.getBoundingClientRect();
+      const r = target.getBoundingClientRect();
+      const tw = tip.offsetWidth;
+      const th = tip.offsetHeight;
+      let left = r.left - box.left + r.width / 2 - tw / 2;
+      left = Math.max(8, Math.min(left, box.width - tw - 8));
+      let top = r.top - box.top - th - 10; // above the fish...
+      if (top < 8) top = r.bottom - box.top + 10; // ...or below if there's no room
+      tip.style.left = `${left}px`;
+      tip.style.top = `${Math.min(top, box.height - th - 8)}px`;
+    }
+    function hide(target) {
+      if (target && target !== current) return;
+      if (current) current.classList.remove("hover");
+      current = null;
+      tip.hidden = true;
+    }
+    function hoverable(node, label, html) {
+      node.tabIndex = 0;
+      node.setAttribute("aria-label", label);
+      node.addEventListener("mouseenter", () => show(node, html));
+      node.addEventListener("mouseleave", () => hide(node));
+      node.addEventListener("focus", () => show(node, html));
+      node.addEventListener("blur", () => hide(node));
+      node.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Tap on phones: toggle. A tap also fires a "hover" just before the click,
+        // so don't treat that click as "close" if the card only just opened.
+        if (current === node && Date.now() - shownAt > 400) hide(node);
+        else show(node, html);
+      });
+    }
+    el.addEventListener("click", () => hide());
+
     // rarest first so they're never left out; at most 30 fish
     const sorted = [...fish].sort((a, b) => RARITY_ORDER.indexOf(b.rarity) - RARITY_ORDER.indexOf(a.rarity)).slice(0, 30);
     sorted.forEach((f, i) => {
@@ -311,20 +361,35 @@
       d.style.animationDuration = `${dur}s`;
       d.style.animationDelay = `-${(h >> 7) % dur}s`;
       d.style.setProperty("--rest", `${5 + ((i * 29) % 80)}%`);
-      d.title = `${f.fish} (${f.rarity}), best ${kg(f.best_weight)}`;
       d.innerHTML = fishSVG(f.fish, f.rarity);
+      hoverable(
+        d,
+        `${f.fish}, ${f.rarity}, caught ${f.caught} times, best ${kg(f.best_weight)}`,
+        `<b class="tip-name">${esc(f.fish)}</b>
+         <span class="tip-rarity" style="color:var(${RARITY_VAR[f.rarity]})">${f.rarity}</span>
+         <dl><div><dt>Caught</dt><dd>×${num(f.caught)}</dd></div>
+         <div><dt>Heaviest</dt><dd>${kg(f.best_weight)}</dd></div>
+         <div><dt>Best catch</dt><dd>+${num(f.best_points)} pts</dd></div></dl>`
+      );
       el.appendChild(d);
     });
+
+    const junk = junkRows.reduce((n, t) => n + t.caught, 0);
     if (junk > 0) {
       const pile = document.createElement("div");
       pile.className = "junkpile";
       pile.style.left = "18px";
-      pile.title = `${junk} pieces of junk`;
       pile.innerHTML = "<span></span>".repeat(Math.min(6, Math.ceil(junk / 5)));
+      const list = [...junkRows].sort((a, b) => b.caught - a.caught).map((t) => `${esc(t.fish)} ×${num(t.caught)}`).join("<br>");
+      hoverable(pile, `Junk pile: ${junk} pieces`, `<b class="tip-name">Junk pile</b><span class="tip-rarity" style="color:var(--junk)">${num(junk)} pieces</span><p class="tip-list">${list}</p>`);
       el.appendChild(pile);
     }
     if (chests > 0) {
-      el.insertAdjacentHTML("beforeend", `<div class="chest" title="Treasure chests opened">×${num(chests)}<i></i></div>`);
+      const chest = document.createElement("div");
+      chest.className = "chest";
+      chest.innerHTML = `×${num(chests)}<i></i>`;
+      hoverable(chest, `${chests} treasure chests opened`, `<b class="tip-name">Treasure chests</b><span class="tip-rarity" style="color:var(--legendary)">${num(chests)} opened</span><p class="tip-list">Each one held coins, Worms or Glow Lures.</p>`);
+      el.appendChild(chest);
     }
   }
 

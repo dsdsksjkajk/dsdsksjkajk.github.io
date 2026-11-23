@@ -189,6 +189,27 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
 .tank .junkpile span { width: 14px; height: 10px; background: var(--junk); border-radius: 2px; }
 .tank .chest { position: absolute; right: 22px; bottom: 30px; z-index: 1; display: flex; align-items: flex-end; gap: 6px; font: 600 .95rem var(--pixel); color: var(--sand); }
 .tank .chest i { display: block; width: 34px; height: 24px; background: #8a5a2b; border: 3px solid #5b3a1a; border-radius: 4px 4px 2px 2px; box-shadow: inset 0 6px 0 #a06a35; }
+/* hover/tap stat card */
+.tank .fish, .tank .junkpile, .tank .chest { cursor: pointer; }
+.tank .fish.hover, .tank .fish:focus-visible { animation-play-state: paused; z-index: 3; }
+.tank .fish.hover svg, .tank .fish:focus-visible svg { filter: brightness(1.25) drop-shadow(0 0 4px rgba(239, 250, 246, .7)); }
+.tank .fish:focus-visible, .tank .junkpile:focus-visible, .tank .chest:focus-visible { outline: 2px solid var(--legendary); outline-offset: 3px; }
+.tip {
+  position: absolute; z-index: 5; min-width: 11rem; max-width: 15rem;
+  padding: .6rem .75rem; border-radius: 8px;
+  background: rgba(239, 250, 246, .96); color: var(--deeper);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  pointer-events: none; font-size: .9rem; line-height: 1.35;
+}
+.tip-name { display: block; font: 600 1.05rem var(--pixel); }
+.tip-rarity { display: block; font-weight: 700; margin-bottom: .35rem; filter: brightness(.7) saturate(1.3); }
+.tip dl { margin: 0; display: grid; gap: .1rem; }
+.tip dl div { display: flex; justify-content: space-between; gap: 1rem; }
+.tip dt { color: #4a6a70; }
+.tip dd { margin: 0; font-weight: 700; }
+.tip-list { margin: 0; color: #4a6a70; }
+.tank-hint { margin-left: auto; font-style: normal; color: #7e9ea5; }
+
 .tank-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--mist); padding: 2rem; z-index: 2; }
 @keyframes swim {
   from { left: -20%; }
