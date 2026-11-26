@@ -300,3 +300,60 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
   .stats dd { font-size: 1.35rem; }
   .board li { grid-template-columns: 2rem 1fr auto; }
 }
+
+/* ---------- December: snow on the water + advent calendar ---------- */
+:root { --holly: #c8463d; --pine: #2f7a4f; }
+.xmas .surface { background: linear-gradient(#d6eef0, #a9d8d2); }
+.snow { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.snow i {
+  position: absolute; top: -8px; width: 4px; height: 4px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(15, 59, 64, .22);
+  animation: snowfall linear infinite;
+}
+.snow i.big { width: 6px; height: 6px; }
+@keyframes snowfall {
+  0%   { transform: translate(0, 0); }
+  50%  { transform: translate(14px, 160px); }
+  100% { transform: translate(-6px, 340px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snow i { animation: none; top: calc(var(--y, 0) * 1%); }
+  .snow i:nth-child(3n) { top: 20%; } .snow i:nth-child(3n+1) { top: 55%; } .snow i:nth-child(3n+2) { top: 80%; }
+}
+
+.advent-banner {
+  margin: 0 0 2rem; padding: 1rem 1.25rem;
+  border: 2px solid var(--legendary); border-radius: var(--r-small);
+  background: linear-gradient(90deg, rgba(200, 70, 61, .22), rgba(47, 122, 79, .18));
+}
+.advent-banner p { margin: .25rem 0; max-width: 62ch; }
+.advent-banner .big { font: 600 1.8rem/1.1 var(--pixel); color: var(--legendary); margin: 0 0 .35rem; }
+
+.advent { margin-top: 2rem; }
+.advent-goal { margin: 0 0 .9rem; max-width: 62ch; }
+.doors {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px;
+}
+.door {
+  aspect-ratio: 5 / 4; border-radius: var(--r-small); padding: .4rem .45rem;
+  display: flex; flex-direction: column; justify-content: space-between;
+  background: var(--deeper); border: 2px dashed #3a5c66; color: #7e9ea5;
+  min-width: 0;
+}
+.door b { font: 600 1.35rem/1 var(--pixel); }
+.door span { font-size: .74rem; line-height: 1.15; overflow-wrap: anywhere; }
+.door.open { background: var(--sand); color: var(--sand-ink); border: 2px solid var(--sand); box-shadow: inset 0 6px 0 var(--holly); }
+.door.open.finale { background: var(--legendary); border-color: var(--legendary); box-shadow: inset 0 6px 0 var(--holly), 0 0 12px rgba(243, 182, 58, .55); }
+.door.today { background: var(--deeper); border: 2px solid var(--legendary); color: var(--foam); box-shadow: 0 0 10px rgba(243, 182, 58, .45); }
+.door.today b { color: var(--legendary); }
+.door.missed { opacity: .5; border-style: solid; }
+.door.missed b { text-decoration: line-through; }
+.door.shut.finale { border-color: var(--legendary); color: var(--legendary); }
+.advent-cta { margin: .9rem 0 0; }
+.found { margin-top: .9rem; }
+.found summary { cursor: pointer; color: var(--mist); }
+.found ol { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .25rem; }
+.found b { font-family: var(--pixel); font-weight: 600; margin-right: .4rem; }
+@media (max-width: 760px) { .doors { grid-template-columns: repeat(6, 1fr); } }
+@media (max-width: 480px) { .doors { grid-template-columns: repeat(4, 1fr); } .door b { font-size: 1.15rem; } }

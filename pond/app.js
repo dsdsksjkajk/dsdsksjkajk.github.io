@@ -17,6 +17,16 @@
   const minsLeft = (t) => Math.max(0, Math.ceil((t - Date.now()) / 60000));
   const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
   const cleanName = (s) => String(s || "").trim().replace(/[^\w-]/g, "").slice(0, 30);
+  // Christmas: December mode. Add ?xmas=2026-12-05 to the address to preview any day.
+  const XMAS_TEST = new URLSearchParams(location.search).get("xmas") || "";
+  function today() {
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(XMAS_TEST) ? new Date(`${XMAS_TEST}T12:00:00Z`) : new Date();
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+  }
+  const isDecember = () => today().m === 12;
+  const adventDoor = () => (isDecember() && today().d <= 24 ? today().d : 0);
+  // The calendar stays on profiles until 6 January
+  const adventYear = () => (today().m === 12 ? today().y : today().m === 1 && today().d <= 6 ? today().y - 1 : 0);
   const profileLink = (name) => `#/p/${encodeURIComponent(String(name).toLowerCase())}`;
   const caughtAgo = (t) => {
     const m = Math.floor((Date.now() - t) / 60000);
@@ -78,6 +88,23 @@
   }
   updateMeLink();
 
+  // December: pixel snow over the water
+  if (isDecember()) {
+    document.body.classList.add("xmas");
+    const snow = document.createElement("div");
+    snow.className = "snow";
+    snow.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 36; i++) {
+      const f = document.createElement("i");
+      f.style.left = `${(i * 37) % 100}%`;
+      f.style.animationDelay = `${-((i * 7.3) % 14)}s`;
+      f.style.animationDuration = `${10 + (i % 5) * 2}s`;
+      if (i % 3 === 0) f.className = "big";
+      snow.appendChild(f);
+    }
+    document.querySelector(".surface").appendChild(snow);
+  }
+
   const demo = makeDemo();
   const data = {
     top: () => (DEMO ? demo.top() : api("players?select=name,display,title,points,contest_wins&points=gt.0&order=points.desc&limit=20")),
@@ -95,6 +122,13 @@
         ? demo.catches(name)
         : api(`catches?player=eq.${encodeURIComponent(name)}&select=fish,rarity,weight,points,caught_at&order=id.desc&limit=8`),
     achievements: (name) => (DEMO ? demo.achievements(name) : api(`achievements?player=eq.${encodeURIComponent(name)}&select=key`)),
+    // Advent doors a player opened (an older Supabase setup may not have this table: none then)
+    advent: (name, year) =>
+      DEMO
+        ? demo.advent(name)
+        : api(`advent?player=eq.${encodeURIComponent(name)}&year=eq.${year}&select=day,gift,opened_at&order=day.asc`).catch(() => []),
+    adventOpened: (year, day) =>
+      DEMO ? Promise.resolve(9) : api(`advent?select=player&year=eq.${year}&day=eq.${day}`, { count: true }).catch(() => null),
     search: (q) =>
       DEMO ? demo.search(q) : api(`players?select=name,display,title&display=ilike.*${encodeURIComponent(q)}*&order=points.desc&limit=8`),
     live: async () => (DEMO ? demo.live() : ((await api("live?id=eq.1&select=data"))[0] || {}).data || null),
@@ -128,9 +162,9 @@
     flat: ["...XXXXXX....", "TXXXXXXXXXXX.", "TTXXXXXXXXEXX", "TXXXXXXXXXXX.", "...XXXXXX...."],
   };
   function shapeFor(name) {
-    if (/eel|herring|sardine|minnow/i.test(name)) return "long";
-    if (/puffer|jelly|kraken|koi|squid/i.test(name)) return "round";
-    if (/ray|flat|whale|shark/i.test(name)) return "flat";
+    if (/eel|herring|sardine|minnow|anchovy|oarfish|barracuda|sturgeon/i.test(name)) return "long";
+    if (/puffer|jelly|kraken|koi|squid|sunfish|angler|bluegill/i.test(name)) return "round";
+    if (/ray|flat|whale|shark|flounder/i.test(name)) return "flat";
     return "fish";
   }
   function shade(hex, amt) {
@@ -233,14 +267,16 @@
   }
 
   async function loadHome() {
-    const [board, recent, history, live, stats] = await Promise.all([
+    const door = adventDoor();
+    const [board, recent, history, live, stats, doorCount] = await Promise.all([
       loadBoard(boardTab),
       data.recent(),
       data.history(),
       data.live().catch(() => null),
       data.stats().catch(() => null),
+      door ? data.adventOpened(today().y, door) : Promise.resolve(null),
     ]);
-    return { board, recent, history, champion: live && live.champion, stats, tab: boardTab };
+    return { board, recent, history, champion: live && live.champion, stats, tab: boardTab, door, doorCount };
   }
 
   function drawHome(d) {
@@ -283,7 +319,15 @@
     const tabs = `<div class="tabs" role="tablist" aria-label="Leaderboards">${BOARDS.map(
       (b) => `<button role="tab" type="button" data-tab="${b.key}" aria-selected="${b.key === d.tab}">${b.label}</button>`
     ).join("")}</div>`;
-    view.innerHTML = `${pondStats}${newHere}<h2>Top anglers</h2>${tabs}<div id="board">${boardHTML(d.board, d.tab, champ)}</div>${hall}<h2>Latest big catches</h2>${big}`;
+    const adventBanner = d.door
+      ? `<section class="advent-banner" aria-label="Advent calendar">
+          <p class="big">Door ${d.door}${d.door === 24 ? ": Christmas Eve" : ""}</p>
+          <p>The advent calendar is open, 1 to 24 December. A gift a day, and the Candy Cane Rod for anyone who opens ${GAME.advent.titleDoors}.
+          ${d.doorCount ? `${num(d.doorCount)} ${d.doorCount === 1 ? "angler has" : "anglers have"} opened today's door.` : ""}</p>
+          <p><code>/pm ${bot} advent</code></p>
+        </section>`
+      : "";
+    view.innerHTML = `${adventBanner}${pondStats}${newHere}<h2>Top anglers</h2>${tabs}<div id="board">${boardHTML(d.board, d.tab, champ)}</div>${hall}<h2>Latest big catches</h2>${big}`;
     view.querySelectorAll(".tabs button").forEach((btn) =>
       btn.addEventListener("click", async () => {
         if (btn.dataset.tab === boardTab) return;
@@ -347,14 +391,16 @@
   async function loadPlayer(name) {
     const p = await data.player(name);
     if (!p) return { missing: name };
-    const [rank, tank, achRows, live, recentCatches] = await Promise.all([
+    const year = adventYear();
+    const [rank, tank, achRows, live, recentCatches, advent] = await Promise.all([
       data.rank(p.points),
       data.aquarium(p.name),
       data.achievements(p.name),
       data.live().catch(() => null),
       data.catches(p.name).catch(() => []),
+      year ? data.advent(p.name, year) : Promise.resolve(null),
     ]);
-    return { p, rank, tank, achRows, champion: live && live.champion, recentCatches };
+    return { p, rank, tank, achRows, champion: live && live.champion, recentCatches, advent };
   }
 
   function drawPlayer(d) {
@@ -369,12 +415,14 @@
     const species = Object.values(GAME.fish).flat().length;
     const have = new Set(achRows.map((a) => a.key));
     const isMe = getMe() === p.name;
+    const candy = have.has("festive_angler");
+    const rod = `${candy ? "Candy Cane " : ""}${GAME.rods[p.rod] || "Twig Rod"}`;
 
     const stats = [
       ["Points", num(p.points)],
       ["Rank", `#${num(rank)}`],
       ["Coins", num(p.coins)],
-      ["Rod", GAME.rods[p.rod] || "Twig Rod"],
+      ["Rod", rod],
       ["Casts", num(p.casts)],
       ["Species", `${caught.size}/${species}`],
       ["Bosses beaten", num(p.boss_kills)],
@@ -412,6 +460,7 @@
       </div>
       <p class="title-line">${p.title ? `the ${esc(p.title)}` : ""}${isChamp ? `${p.title ? ", " : ""}👑 Reigning contest champion` : ""}</p>
       <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+      ${d.advent ? calendarHTML(d.advent, candy) : ""}
       <h2>Aquarium</h2>
       <div class="tank" id="tank" role="img" aria-label="${esc(p.display)}'s aquarium with ${caught.size} species"></div>
       <p class="legend">${RARITY_ORDER.map((r) => `<span style="--c:var(${RARITY_VAR[r]})">${r}</span>`).join("")}<em class="tank-hint">${matchMedia("(hover: hover)").matches ? "Hover" : "Tap"} a fish to see its stats</em></p>
@@ -437,6 +486,60 @@
       btn.setAttribute("aria-pressed", String(!nowMe));
     });
     btn.title = isMe ? "Click to forget" : "Remember me in this browser, for a quick My aquarium link";
+  }
+
+  // ---------- advent calendar ----------
+  function calendarHTML(rows, candy) {
+    const opened = new Map(rows.map((r) => [r.day, r]));
+    const door = adventDoor(); // 0 once the calendar is over
+    const over = !door;
+    const need = GAME.advent.titleDoors;
+    const n = opened.size;
+    const bot = esc(CFG.BOT_NAME || "flatfish");
+
+    let goal;
+    if (candy) goal = `Candy Cane Rod earned. Merry Christmas!`;
+    else if (over) goal = n ? `${n} of 24 doors opened.` : "No doors opened this year.";
+    else {
+      const left = 24 - door + (opened.has(door) ? 0 : 1); // doors still openable, today included
+      const short = Math.max(0, need - n);
+      goal =
+        short > left
+          ? `${n} of 24 opened. Too few doors left for the Candy Cane Rod this year, but every door still has a gift.`
+          : `${n} of 24 opened. ${short ? `${short} more, including Christmas Eve,` : "Open Christmas Eve's door"} for the Festive Angler title and the Candy Cane Rod.`;
+    }
+
+    const cells = Array.from({ length: 24 }, (_, i) => {
+      const day = i + 1;
+      const row = opened.get(day);
+      const label = GAME.advent.doors[day] || "Gift";
+      if (row) {
+        const gift = row.gift || label;
+        return `<li class="door open${day === 24 ? " finale" : ""}" title="Door ${day}: ${esc(gift)}"><b>${day}</b><span>${esc(label)}</span></li>`;
+      }
+      if (!over && day === door)
+        return `<li class="door today"><b>${day}</b><span>Open today</span></li>`;
+      if (over || day < door)
+        return `<li class="door missed" title="Door ${day} was missed"><b>${day}</b><span>Missed</span></li>`;
+      return `<li class="door shut${day === 24 ? " finale" : ""}"><b>${day}</b><span>${day === 24 ? "Christmas Eve" : ""}</span></li>`;
+    }).join("");
+
+    const found = rows.length
+      ? `<details class="found"><summary>What's been inside (${rows.length})</summary><ol>${rows
+          .map((r) => `<li><b>Door ${r.day}</b> ${esc(r.gift)}</li>`)
+          .join("")}</ol></details>`
+      : "";
+    const todayNote =
+      !over && !opened.has(door)
+        ? `<p class="advent-cta">Door ${door} is waiting: <code>/pm ${bot} advent</code></p>`
+        : "";
+    return `
+      <section class="advent" aria-labelledby="advent-h">
+        <h2 id="advent-h">Advent calendar</h2>
+        <p class="advent-goal">${esc(goal)}</p>
+        <ol class="doors">${cells}</ol>
+        ${todayNote}${found}
+      </section>`;
   }
 
   function fillTank(el, fish, junkRows, chests) {
@@ -671,6 +774,13 @@
         ),
       achievements: (n) => delay(GAME.achievements.filter((a, i) => (hash(n + a.key) % 3) === 0 || i === 0).map((a) => ({ key: a.key }))),
       search: (q) => delay(players.filter((p) => p.name.includes(q.toLowerCase())).slice(0, 8)),
+      advent: (n) => {
+        const upTo = adventDoor() || 24;
+        const rows = [];
+        for (let day = 1; day <= upTo; day++)
+          if (hash(n + day) % 4 !== 0 && day < upTo) rows.push({ day, gift: GAME.advent.doors[day], opened_at: Date.now() });
+        return delay(rows);
+      },
       stats: () => delay({ anglers: players.length, fish: players.reduce((n, p) => n + p.casts, 0), legendary: 23 }),
       live: () => delay({ online: true, at: Date.now(),
         champion: { name: "winton", display: "winton", fish: "Giant Squid", points: 214, trophies: 2 }, event: { type: "boss", name: "The Leviathan", hp: 3420, maxHp: 7500, endsAt: Date.now() + 17 * 60000, top: [{ name: "winton", dmg: 1840 }, { name: "dsdsksjkajk", dmg: 1310 }, { name: "bobek", dmg: 930 }] } }),

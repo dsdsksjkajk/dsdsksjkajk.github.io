@@ -14,7 +14,9 @@ window.GAME = {
       "Tin Can",
       "Soggy Sock",
       "Clump of Seaweed",
-      "Broken Fishing Rod"
+      "Broken Fishing Rod",
+      "Rusty Anchor",
+      "Torn Net"
     ],
     "Common": [
       "Minnow",
@@ -22,33 +24,49 @@ window.GAME = {
       "Perch",
       "Carp",
       "Trout",
-      "Herring"
+      "Herring",
+      "Bluegill",
+      "Roach",
+      "Mackerel",
+      "Anchovy"
     ],
     "Uncommon": [
       "Salmon",
       "Catfish",
       "Pike",
       "Sea Bass",
-      "Pufferfish"
+      "Pufferfish",
+      "Rainbow Trout",
+      "Red Snapper",
+      "Flounder",
+      "Zander"
     ],
     "Rare": [
       "Swordfish",
       "Electric Eel",
       "Golden Carp",
       "Lionfish",
-      "Bluefin Tuna"
+      "Bluefin Tuna",
+      "Barracuda",
+      "Sturgeon",
+      "Silver Arowana"
     ],
     "Epic": [
       "Great White Shark",
       "Giant Squid",
       "Manta Ray",
-      "Crystal Jellyfish"
+      "Crystal Jellyfish",
+      "Giant Oarfish",
+      "Hammerhead Shark",
+      "Ocean Sunfish"
     ],
     "Legendary": [
       "Ancient Coelacanth",
       "Moonlight Koi",
       "Baby Kraken",
-      "The Pixel Whale"
+      "The Pixel Whale",
+      "Ghost Carp",
+      "Abyssal Anglerfish"
     ]
   },
   "rods": [
@@ -135,6 +153,11 @@ window.GAME = {
       "desc": "hold 10,000 coins at once"
     },
     {
+      "key": "festive_angler",
+      "title": "Festive Angler",
+      "desc": "open 15+ advent doors incl. Christmas Eve"
+    },
+    {
       "key": "boss_kill",
       "title": "Boss Hunter",
       "desc": "help defeat a boss"
@@ -154,5 +177,34 @@ window.GAME = {
       "title": "Grand Champion",
       "desc": "win 5 fishing contests"
     }
-  ]
+  ],
+  "advent": {
+    "doors": {
+      "1": "50 coins",
+      "2": "10 worms",
+      "3": "1 present",
+      "4": "75 coins",
+      "5": "2 lures",
+      "6": "Lucky Bobber",
+      "7": "2 presents",
+      "8": "100 coins",
+      "9": "20 worms",
+      "10": "3 lures",
+      "11": "Mystery",
+      "12": "150 coins",
+      "13": "Lucky Bobber",
+      "14": "3 presents",
+      "15": "200 coins",
+      "16": "5 lures",
+      "17": "30 worms",
+      "18": "Mystery",
+      "19": "250 coins",
+      "20": "Golden Bobber",
+      "21": "4 presents",
+      "22": "300 coins",
+      "23": "8 lures",
+      "24": "Golden Present"
+    },
+    "titleDoors": 15
+  }
 };
