@@ -417,7 +417,7 @@
   // Big and crisp: whole sprite pixels, at most 160 wide and 84 tall
   function dexW(f) {
     const z = SPRITES.size(f);
-    const k = Math.max(2, Math.min(6, Math.floor(Math.min(160 / z.w, 84 / z.h))));
+    const k = Math.max(1, Math.min(4, Math.floor(Math.min(170 / z.w, 90 / z.h))));
     return z.w * k;
   }
   function drawRecords(d) {
@@ -747,7 +747,7 @@
       const d = document.createElement("div");
       d.className = `fish${h % 2 ? " left" : ""}${f.rarity === "Legendary" ? " legendary" : ""}`;
       const z = window.SPRITES && SPRITES.size(f.fish);
-      d.style.width = z ? `${Math.round(z.w * (SCALE[f.rarity] || 3))}px` : `${SIZE[f.rarity] || 34}px`;
+      d.style.width = z ? `${Math.round((z.w / (SPRITES.res || 1)) * (SCALE[f.rarity] || 3))}px` : `${SIZE[f.rarity] || 34}px`;
       d.style.top = `${8 + ((h >> 3) % 62)}%`;
       const dur = 14 + ((h >> 5) % 18) + (f.rarity === "Legendary" ? 8 : 0);
       d.style.animationDuration = `${dur}s`;
@@ -772,7 +772,7 @@
       pile.className = "junkpile";
       pile.style.left = "18px";
       const topJunk = [...junkRows].sort((a, b) => b.caught - a.caught).slice(0, 3);
-      pile.innerHTML = topJunk.map((t) => art(t.fish, Math.round(SPRITES.size(t.fish).w * 2.4))).join("");
+      pile.innerHTML = topJunk.map((t) => art(t.fish, Math.round((SPRITES.size(t.fish).w / (SPRITES.res || 1)) * 2.4))).join("");
       const list = [...junkRows].sort((a, b) => b.caught - a.caught).map((t) => `${esc(t.fish)} ×${num(t.caught)}`).join("<br>");
       hoverable(pile, `Junk pile: ${junk} pieces`, `<b class="tip-name">Junk pile</b><span class="tip-rarity" style="color:var(--junk)">${num(junk)} pieces</span><p class="tip-list">${list}</p>`);
       el.appendChild(pile);

@@ -501,97 +501,200 @@
   };
 
   // ---------- drawing ----------
+  // Shapes are designed at 1x, then doubled with Scale2x (smooth curves instead of stairs),
+  // then patterned, shaded (lit from above) and outlined at 2x for detail.
+  const RES = 2;
   const EYE = "#0b1b22";
   function hex(c) {
     const n = parseInt(c.slice(1), 16);
     return [n >> 16, (n >> 8) & 255, n & 255];
   }
-  function mix(c, amt) {
-    // amt < 0 darkens, > 0 lightens
-    const [r, g, b] = hex(c);
+  // amt < 0 darkens, > 0 lightens
+  function mixRGB([r, g, b], amt) {
     const f = (v) => Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt);
-    return `rgb(${f(r)},${f(g)},${f(b)})`;
+    return [f(r), f(g), f(b)];
+  }
+  const css = ([r, g, b]) => `rgb(${r},${g},${b})`;
+  const mix = (c, amt) => css(mixRGB(hex(c), amt));
+
+  // Scale2x / EPX on a grid of letters
+  function scale2x(g) {
+    const H = g.length;
+    const W = Math.max(...g.map((r) => r.length));
+    const at = (x, y) => (y < 0 || y >= H || x < 0 || x >= W ? "." : g[y][x] || ".");
+    const out = Array.from({ length: H * 2 }, () => Array(W * 2).fill("."));
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const P = at(x, y), A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+        let p1 = P, p2 = P, p3 = P, p4 = P;
+        if (C === A && C !== D && A !== B) p1 = A;
+        if (A === B && A !== C && B !== D) p2 = B;
+        if (D === C && D !== B && C !== A) p3 = C;
+        if (B === D && B !== A && D !== C) p4 = D;
+        // keep eyes and small details crisp
+        if ("ewg".includes(P)) p1 = p2 = p3 = p4 = P;
+        out[y * 2][x * 2] = p1;
+        out[y * 2][x * 2 + 1] = p2;
+        out[y * 2 + 1][x * 2] = p3;
+        out[y * 2 + 1][x * 2 + 1] = p4;
+      }
+    return out;
   }
 
-  function paint(name, spec) {
-    const out = spec.rows.map((r) => [...r]);
-    const [body, belly, fin, accent] = spec.c;
-    const pal = { b: body, l: belly, f: fin, a: accent || fin, e: EYE, w: "#ffffff" };
-    const p = spec.p;
-    const H = out.length;
-    out.forEach((row, y) =>
-      row.forEach((ch, x) => {
-        if (ch !== "b" && ch !== "l") return;
-        const mid = Math.floor(H / 2);
+  // Patterns at 2x resolution: finer spots, stripes and scales
+  function pattern(g, p, seed) {
+    if (!p) return;
+    const H = g.length;
+    const mid = Math.floor(H / 2);
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < g[y].length; x++) {
+        const ch = g[y][x];
+        if (ch !== "b" && ch !== "l") continue;
         let A = false;
-        if (p === "stripes" || p === "bands") A = ch === "b" && x % 3 === 0 && x > 2;
-        else if (p === "bars") A = ch === "b" && x % 4 === 1;
-        else if (p === "spots") A = (x * 7 + y * 13 + name.length) % 6 === 0;
-        else if (p === "scales") A = ch === "b" && (x + y) % 3 === 0 && y > 1;
-        else if (p === "line") A = y === mid - 1 + (H % 2) && ch === "b";
-        else if (p === "rainbow") A = y === mid && ch === "b";
-        else if (p === "waves") A = ch === "b" && (x + (y % 2)) % 3 === 0;
-        else if (p === "koi") A = ch === "b" && (Math.floor(x / 3) + Math.floor(y / 2)) % 3 === 1;
-        else if (p === "zap") A = ch === "b" && x % 5 === 2;
-        else if (p === "plates") A = ch === "b" && y === 1 && x % 2 === 0;
-        else if (p === "finlets") A = ch === "l" && x % 2 === 0 && y === H - 3;
-        else if (p === "oar") A = ch === "b" && (x * 3 + y) % 7 === 0;
-        else if (p === "belly") A = ch === "b" && y === mid && x > 2 && x < 12;
-        if (A) out[y][x] = "a";
-      })
-    );
-    // the Oarfish's red crest runs along its back
-    if (p === "oar") out[0] = out[0].map((ch) => (ch === "b" ? "f" : ch));
-    return { grid: out, pal, glow: spec.glow, ghost: spec.ghost };
+        if (p === "bands") A = ch === "b" && x > 5 && x % 6 < 2;
+        else if (p === "bars") A = ch === "b" && x % 7 < 2;
+        else if (p === "spots") A = ((x * 7 + y * 13 + seed) % 11 === 0) || ((x * 5 + y * 3 + seed) % 17 === 0 && x % 2 === 0);
+        else if (p === "scales") A = ch === "b" && y > 2 && ((x + (Math.floor(y / 2) % 2) * 2) % 4 === 0) && y % 2 === 0;
+        else if (p === "line") A = ch === "b" && (y === mid - 1 || y === mid - 2) && x % 2 === 0;
+        else if (p === "rainbow") A = ch === "b" && (y === mid || y === mid - 1);
+        else if (p === "waves") A = ch === "b" && (x + Math.round(2 * Math.sin(y))) % 5 === 0;
+        else if (p === "koi") A = ch === "b" && (Math.floor((x + 1) / 5) + Math.floor(y / 4)) % 3 === 1;
+        else if (p === "zap") A = ch === "b" && (x % 9 === 3 || (x % 9 === 4 && y % 2 === 0));
+        else if (p === "plates") A = ch === "b" && y <= 3 && x % 4 === 0;
+        else if (p === "finlets") A = ch === "l" && x % 4 === 0 && y >= H - 7 && y <= H - 5;
+        else if (p === "oar") A = ch === "b" && (x * 3 + y * 2) % 13 === 0;
+        else if (p === "belly") A = ch === "b" && (y === mid || y === mid - 1) && x > 5 && x < 24;
+        if (A) g[y][x] = "a";
+      }
   }
 
+  // Base shape letters + palette for a name
   function build(name) {
     if (FISH[name]) {
       const s = FISH[name];
-      return paint(name, { ...s, rows: T[s.t] });
+      const [body, belly, fin, accent] = s.c;
+      return {
+        grid: T[s.t].map((r) => [...r]),
+        pal: { b: body, l: belly, f: fin, a: accent || fin, e: EYE, w: "#ffffff" },
+        p: s.p,
+        oar: s.p === "oar",
+        glow: s.glow,
+        ghost: s.ghost,
+      };
     }
     const s = SPECIAL[name] || ITEMS[name];
     if (!s) return null;
     return { grid: s.rows.map((r) => [...r]), pal: { e: EYE, w: "#ffffff", ...s.pal }, glow: s.glow, ghost: s.ghost };
   }
 
-  // Add a 1-pixel dark outline around every filled pixel
-  function toSVG(name, { silhouette = false, title = "" } = {}) {
+  const cache = new Map();
+  // Colour grid at 2x, with shading and outline. null = transparent.
+  function render(name, silhouette) {
+    const key = name + (silhouette ? "|s" : "");
+    if (cache.has(key)) return cache.get(key);
     const s = build(name);
-    if (!s) return "";
-    const g = s.grid;
+    if (!s) return null;
+    if (s.oar) s.grid[0] = s.grid[0].map((ch) => (ch === "b" ? "f" : ch)); // the Oarfish's red crest
+    let g = scale2x(s.grid);
+    let seed = 0;
+    for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 97;
+    pattern(g, s.p, seed);
+    // eyes: a white shine in the top-left pixel of each eye
+    for (let y = 0; y < g.length - 1; y++)
+      for (let x = 0; x < g[y].length - 1; x++)
+        if (g[y][x] === "e" && g[y][x + 1] === "e" && g[y + 1][x] === "e" && (y === 0 || g[y - 1][x] !== "e") && (x === 0 || g[y][x - 1] !== "e"))
+          g[y][x] = "w";
+
+    // pad by 1 for the outline
     const H = g.length + 2;
     const W = Math.max(...g.map((r) => r.length)) + 2;
-    const filled = (x, y) => y >= 1 && y <= g.length && x >= 1 && g[y - 1][x - 1] && g[y - 1][x - 1] !== ".";
-    const firstColour = s.pal.b || Object.values(s.pal).find((v) => v.startsWith("#") && v !== EYE) || "#888888";
-    const outline = silhouette ? "#0a1c24" : mix(firstColour, -0.62);
-    let rects = "";
-    // outline
+    const L = (x, y) => (y >= 1 && y <= g.length && x >= 1 ? g[y - 1][x - 1] || "." : ".");
+    const filled = (x, y) => L(x, y) !== ".";
+    // column extents, for the top-to-bottom light
+    const top = Array(W).fill(H), bot = Array(W).fill(-1);
+    for (let x = 0; x < W; x++)
+      for (let y = 0; y < H; y++)
+        if (filled(x, y)) {
+          top[x] = Math.min(top[x], y);
+          bot[x] = Math.max(bot[x], y);
+        }
+
+    const px = Array.from({ length: H }, () => Array(W).fill(null));
     for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++)
-        if (!filled(x, y) && (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1)))
-          rects += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${outline}"/>`;
-    // pixels
-    g.forEach((row, y) =>
-      row.forEach((ch, x) => {
-        if (ch === ".") return;
-        let fill = silhouette ? "#18343f" : s.pal[ch] || s.pal.b;
-        // soft top highlight on bodies
-        if (!silhouette && ch === "b" && y > 0 && (!g[y - 1][x] || g[y - 1][x] === ".")) fill = mix(s.pal.b, 0.18);
-        rects += `<rect x="${x + 1}" y="${y + 1}" width="1.02" height="1.02" fill="${fill}"/>`;
-      })
-    );
-    const cls = ["px", s.glow && !silhouette ? "glow" : "", s.ghost && !silhouette ? "ghost" : ""].filter(Boolean).join(" ");
+      for (let x = 0; x < W; x++) {
+        const ch = L(x, y);
+        if (ch === ".") continue;
+        if (silhouette) {
+          px[y][x] = [24, 52, 63];
+          continue;
+        }
+        const base = s.pal[ch] || s.pal.b || "#888888";
+        let c = hex(base);
+        if (ch === "e" || ch === "w" || ch === "g") {
+          px[y][x] = c;
+          continue;
+        }
+        // light from above: brighter at the top of the shape, darker at the bottom
+        const span = Math.max(1, bot[x] - top[x]);
+        const t = (y - top[x]) / span;
+        c = mixRGB(c, 0.16 - t * 0.34);
+        // a bright rim where the top edge meets the water
+        if (!filled(x, y - 1)) c = mixRGB(c, 0.28);
+        else if (!filled(x, y - 2)) c = mixRGB(c, 0.1);
+        // fins get rays
+        if (ch === "f" && y % 2 === 0) c = mixRGB(c, -0.12);
+        // soft edge between body and belly
+        if (ch === "l" && L(x, y - 1) === "b") c = mixRGB(c, -0.1);
+        px[y][x] = c;
+      }
+    // selective outline: a darker version of the colour it touches, darkest underneath
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        if (px[y][x]) continue;
+        const n = [[x, y - 1, -0.7], [x - 1, y, -0.62], [x + 1, y, -0.62], [x, y + 1, -0.5]];
+        let best = null;
+        for (const [nx, ny, amt] of n) {
+          if (ny < 0 || ny >= H || nx < 0 || nx >= W || !filled(nx, ny)) continue;
+          const src = silhouette ? [24, 52, 63] : hex(s.pal[L(nx, ny)] || s.pal.b || "#888888");
+          const col = silhouette ? [10, 28, 36] : mixRGB(src, amt);
+          if (!best || col[0] + col[1] + col[2] < best[0] + best[1] + best[2]) best = col;
+        }
+        if (best) px[y][x] = best;
+      }
+    const out = { px, W, H, glow: s.glow, ghost: s.ghost };
+    cache.set(key, out);
+    return out;
+  }
+
+  function toSVG(name, { silhouette = false, title = "" } = {}) {
+    const r = render(name, silhouette);
+    if (!r) return "";
+    let rects = "";
+    // merge runs of the same colour in a row: fewer elements, same picture
+    r.px.forEach((row, y) => {
+      for (let x = 0; x < r.W; ) {
+        const c = row[x];
+        if (!c) {
+          x++;
+          continue;
+        }
+        let n = 1;
+        while (x + n < r.W && row[x + n] && row[x + n].join() === c.join()) n++;
+        rects += `<rect x="${x}" y="${y}" width="${n + 0.02}" height="1.02" fill="${css(c)}"/>`;
+        x += n;
+      }
+    });
+    const cls = ["px", r.glow && !silhouette ? "glow" : "", r.ghost && !silhouette ? "ghost" : ""].filter(Boolean).join(" ");
     const label = title ? `role="img" aria-label="${title.replace(/"/g, "&quot;")}"` : 'aria-hidden="true"';
-    return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" shape-rendering="crispEdges" ${label}>${rects}</svg>`;
+    return `<svg class="${cls}" viewBox="0 0 ${r.W} ${r.H}" width="${r.W}" height="${r.H}" shape-rendering="crispEdges" ${label}>${rects}</svg>`;
   }
 
   const names = [...Object.keys(FISH), ...Object.keys(SPECIAL), ...Object.keys(ITEMS)];
-  // Size in sprite pixels (with the outline), for scaling
+  // Size in sprite pixels (with the outline). res says how many sprite pixels make one
+  // design pixel, so pages can keep the same on-screen sizes.
   function size(name) {
-    const s = build(name);
-    if (!s) return null;
-    return { w: Math.max(...s.grid.map((r) => r.length)) + 2, h: s.grid.length + 2 };
+    const r = render(name, false);
+    return r ? { w: r.W, h: r.H } : null;
   }
-  window.SPRITES = { svg: toSVG, size, has: (n) => !!build(n), names };
+  window.SPRITES = { svg: toSVG, size, res: RES, has: (n) => !!build(n), names };
 })();
