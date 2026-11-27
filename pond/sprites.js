@@ -1,700 +1,91 @@
-// Pixel art for the pond: every fish, junk item, rod, bait and box.
-// Each sprite is a grid of letters; a dark outline is added around it automatically.
-//   .  empty         b  body        l  belly        f  fins/tail
-//   a  accent        e  eye         w  white        k  dark detail
-//   g  glow          x  extra
-// Fish face right. Patterns (stripes, spots...) paint the accent colour over the body.
-(function () {
-  // ---------- body shapes ----------
-  const T = {
-    classic: [
-      "......ff......",
-      "f...bbbbbb....",
-      "ff.bbbbbbbbb..",
-      "ffbbbbbbbbbebb",
-      "ffbbbbbbbbbbbb",
-      "ff.llllllllll.",
-      "f...llllllll..",
-      "......ff......",
-    ],
-    slim: [
-      "...bbbbbb...",
-      "fbbbbbbbbeb.",
-      "ffllllllllll",
-      "f..llllll...",
-    ],
-    tall: [
-      ".....ff.....",
-      "....bbbbb...",
-      "f..bbbbbbb..",
-      "ffbbbbbbbebb",
-      "ffbbbbbbbbbb",
-      "f.llllllllll",
-      "...llllllll.",
-      "....lllll...",
-      ".....ff.....",
-    ],
-    long: [
-      "f.bbbbbbbbbbbbbb..",
-      "ffbbbbbbbbbbbbbebb",
-      "f.llllllllllllll..",
-    ],
-    pike: [
-      ".........ff......",
-      "f...bbbbbbbbbb...",
-      "ffbbbbbbbbbbbbebb",
-      "ffbbbbbbbbbbbbbbb",
-      "f...lllllllllll..",
-      ".......ff........",
-    ],
-    torpedo: [
-      "f.......fff.......",
-      "ff...bbbbbbbbb....",
-      ".ffbbbbbbbbbbbbe..",
-      "..fbbbbbbbbbbbbbbb",
-      ".fflllllllllllll..",
-      "ff...lllllllll....",
-      "f.......ff........",
-    ],
-    shark: [
-      "f.........ff........",
-      "ff.......fff........",
-      ".ff...bbbbbbbbbb....",
-      "..fbbbbbbbbbbbbbbe..",
-      "..fbbbbbbbbbbbbbbbbb",
-      ".fflllllllllllllkkk.",
-      "ff.....llllllll.....",
-      "f.......ff.....ff...",
-    ],
-    flat: [
-      "....bbbbbbbb....",
-      "f.bbbbbbbbbbebe.",
-      "ffbbbbbbbbbbbbbb",
-      "f.bbbbbbbbbbbbb.",
-      "....bbbbbbbb....",
-    ],
-    ray: [
-      "......bb........",
-      ".....bbbb.......",
-      "....bbbbbbb.....",
-      "..bbbbbbbbbbe...",
-      "fffbbbbbbbbbbbb.",
-      "..bbbbbbbbbbe...",
-      "....bbbbbbb.....",
-      ".....bbbb.......",
-      "......bb........",
-    ],
-    round: [
-      "....bbbbb...",
-      "..bbbbbbbbb.",
-      "f.bbbbbbbebb",
-      "ffbbbbbbbbbb",
-      "f.llllllllll",
-      "..lllllllll.",
-      "....lllll...",
-    ],
-    disc: [
-      "...ffff....",
-      "..bbbbbbb..",
-      ".bbbbbbbbb.",
-      "fbbbbbbbebb",
-      "fbbbbbbbbbb",
-      "fllllllllll",
-      ".lllllllll.",
-      "..lllllll..",
-      "...ffff....",
-    ],
+// Hand-drawn pixel art for every fish, rod and item on Flatfish's Pond.
+// Each sprite is a grid of letters plus its own palette ('o' is the outline, '.' is empty).
+// The art was placed pixel by pixel; nothing is generated at runtime.
+(() => {
+  const ART = {
+    "Minnow": {"rows":["............oo............","..o.......ooFFoooo.ooo....",".ofo..ooooLLLLLLLLoLLLoo..","oFFFooLLLLLLLLLLLLLGLLLLo.","fffffBBBBKBKBKBKBKGBWEBBBo","FFFFBBBKKKKKKKKKKKGKEEBBBo","fffffYYYYYYYYYYYYYGYYYYYMo","oFFFooYYYYYYYYYYYYYGYYYoo.",".ofo..ooooYYYYYYYYooooo...","..o.......oooFoooo........",".............o............"],"pal":{"o":"#1f2618","F":"#8d9a6a","f":"#748152","L":"#b5c08e","B":"#8a9a68","Y":"#e3e4c8","K":"#4c5634","G":"#6c7a50","E":"#0b1b22","W":"#ffffff","M":"#3a3222"}},
+    "Sardine": {"rows":["..............oo..............",".oo.........ooFFoooo..........","offo....ooooTTTTTTTTooooooo...",".oFFooooTTTTTTTTTTTTTTGTTTTo..","..offfBBBBBBKBBKBBKBBGBBWEBBo.","..oFFYYYYYYYYYYYYYYYYGYYEEYYo.","..offfYYYSYSYSYSYSYSYGYSYYYYMo",".oFFooooYYYYYYYYYYYYYYGYYYYoo.","offo....ooooYYYYYYYYooooooo...",".oo.........oooooooo.........."],"pal":{"o":"#14232c","F":"#6d8a9c","f":"#56707f","T":"#3f6f7d","B":"#5f8ea2","Y":"#e9eff2","S":"#c3d2da","K":"#1e3440","G":"#40606d","E":"#0b1b22","W":"#ffffff","M":"#2a3a44"}},
+    "Herring": {"rows":["...............ooo..............",".oo..........ooFFFooo...........","offo.....ooooTTTTTTTTooooooo....",".oFFoo.ooTTTTTTTTTTTTTTGTTTTo...","..offfoBBBBBBBBBBBBBBBGBBBWEBo..","..oFFFBBBBBBBBBBBBBBBBGBBBEEBBo.","..offfYYSSSSSSSSSSSSSSGSSSSYYMMo","..oFFFoYYYYYYYYYYYYYYYGYYYYYYoo.",".offoo.ooYYYYYYYYYYYYYYGYYYYo...","oFFo.....ooooYYYYYYYYooooooo....",".oo..........oooooFoo...........","..................o............."],"pal":{"o":"#152234","F":"#7d93a8","f":"#62788c","T":"#3d5c80","B":"#5d7fa3","Y":"#edf1f4","S":"#cdd8e2","G":"#40587a","E":"#0b1b22","W":"#ffffff","M":"#2a3646"}},
+    "Anchovy": {"rows":[".o.........................","oFoo.....oooooooooooooooo..",".offoooooTTTTTTTTTTTTGTWEo.","..oFFFBBBBBBBBBBBBBBGBBEEBo","..offBSSSSSSSSSSSSSSGSSSBBo","..oFFFYYYYYYYYYYYYYYGYYYYYo",".offoooooYYYYYYYYYYYYGMMMMo","oFoo.....ooooooooooooooooo.",".o........................."],"pal":{"o":"#17252a","F":"#8fa6ad","f":"#728a91","T":"#5f8a86","B":"#87a8a6","Y":"#e8eeee","S":"#f6fbfc","G":"#5c7774","E":"#0b1b22","W":"#ffffff","M":"#3c4c50"}},
+    "Mackerel": {"rows":[".............oo....o............",".o..........oFFooooFo...........","ofoo.....oooooTTTTTToooooooo....",".oFFoo.ooKTTKTTKTTKTTKTGTTTTo...",".offffoBBBKBBKBBKBBKBBGBBWEBBo..","..oFFFBBBBBKBBKBBKBBKBGBBEEBBoo.","..offfYYYYYYYYYYYYYYYYGYYYYYYoMo",".oFFFFoYYYYYYYYYYYYYYYGYYYYYo.o.",".offoo.ooYYYYYYYYYYYYYYGYYYo....","oFoo....oFoFoFYYYYYYooooooo.....",".o.......o.o.ooooooo............"],"pal":{"o":"#102620","F":"#5f8a80","f":"#47706a","T":"#2f7a68","B":"#3f9480","Y":"#eef2ee","K":"#123028","G":"#2d6a5a","E":"#0b1b22","W":"#ffffff","M":"#203a34"}},
+    "Carp": {"rows":["............oooooooooo............",".o.........oFFFFFFFFFFo...........","oFo.......oFFLLLLLLLLLLooooooo....",".ofo....ooLLLYLLLYLLLYLLLLLLLLo...",".oFFoo.oBBBBBKBBBKBBBKBLLGLLLLLo..","..offfoBBBBLBBBLBBBLBBBLGBBBIIIBo.","..oFFFBBBBBKBBBKBBBKBBBKGBBBIWEBo.","..offfBBBLBBBLBBBLBBBLBBGBBBIEEBo.","..oFFFBBBKBBBKBBBKBBBKYYGYYYYYYYo.","..offfoDDDDDDDDDDDDDDDDYFFFYYYYoMo",".oFFoo.oYYYYYYYYYYYYYYYYFFYYYYoRRo",".ofo....ooYYYYYYYYYYYYYYFYYYoooRo.","oFo.......ooFYYYYYYYYYYooooo...o..",".o.........oFFooooooFoo...........","............oo.....oFo............","....................o............."],"pal":{"o":"#2a1c0c","F":"#a8783a","f":"#8a5e28","L":"#e0bc6e","B":"#c4943e","D":"#a37a32","Y":"#ecd8a2","K":"#7a5424","G":"#8a6228","I":"#d8b056","E":"#0b1b22","W":"#ffffff","M":"#4a3014","R":"#a37a32"}},
+    "Trout": {"rows":["...............ooooo..............",".o........o...oFFFFFo.............","ofoo.....oFoooFFFFFFFoooooooo.....","oFFFoo...oFoLKLLLLLKLLLLLLLLLoo...",".ofKffo.oLKLLLLLKLLLLLKLKGLKLLLo..",".oFFFFKoBBBBBBBKBBBBBKBBGBBBIIIBo.",".offfffBBKBBKBBBBBKBBBBBGBBBIWEBo.",".oFFFFFPPPPPPPPPPPPPPPPRGPPPIEEPo.",".offfffPPPPRPPKPPRPPKPPPFFFPPYYMMo",".oFFFKFoYYYYYYYYYYYYYYYYFFYYYYYYo.","ofKffoo.ooYYYYYYYYYYYYYYFYYYYYoo..","oFFoo.....ooFFFYYYYYYooooooooo....","ofo.........oFoooooFo.............",".o..........oFo...oFo.............",".............o.....o.............."],"pal":{"o":"#241d12","F":"#8a7a4e","f":"#6f6238","L":"#ab9c64","B":"#877649","P":"#d8b56a","Y":"#efe3c4","K":"#241d12","R":"#c0503d","G":"#5e5232","I":"#d8b56a","E":"#0b1b22","W":"#ffffff","M":"#3a2f22"}},
+    "Bluegill": {"rows":["..........ooooooo.........",".........oFFFFFFFo........","........oFLLLLLLLLoo......",".......oLLLLLLLLLLLLoo....",".o....oLLLLLLLLLLLLLLLo...","oFo..oBBKBBKBBKBBLLLLLLo..","offooBBBBBBBBBBBBBBBBIIIo.","oFFFFBBBKBBKBBKBBKBBBIWEo.","offffBBBKBBKBBKBBKXXBIEEo.","oFFFFBBBBBBBBBBBBBXXBBBBo.","offffBBBKBBKBBKBBKXBBBBBMo","oFFooBBBKBBKBBKBFFFOOOOOo.","ofo..oOOOOOOOOOOFFOOOOOo..",".o....oOOOOOOOOOOOOOOOo...",".......oOOOOOOOOOOOOoo....","........oFOOOOOOOOoo......",".........ooooooooo........"],"pal":{"o":"#121e26","F":"#4d6f74","f":"#3a575c","L":"#7fa3a6","B":"#5b8287","O":"#e0a446","K":"#3f5f63","X":"#0d1418","I":"#8fa660","E":"#0b1b22","W":"#ffffff","M":"#2b3a3c"}},
+    "Roach": {"rows":["..............oo..............",".o...........oFFoo............","oro......ooooFTTTToooooooo....",".oRo...ooTTTTTTTTTTTTTTTTTo...",".orroooBBBBBBBBBBBBBTGTTTTTo..","..oRRRBBBSBBBSBBBSBBGBBBRRRBo.","..orrrBBBBBBBBBBBBBBGBBBRWEBo.","..oRRRYYYYYSYYYSYYYSGYYYREEYo.","..orrrYYYYYYYYYYYYYYGRRRYYYYMo",".oRRoooYYYYYYYYYYYYYYRRYYYYoo.",".oro...ooYYYYYYYYYYYYRYYYoo...","oRo......ooooRYYYYRoooooo.....",".o..........oRooooRo..........",".............o....o..........."],"pal":{"o":"#1a2228","F":"#8fa1ad","R":"#d24a3c","r":"#a83628","T":"#6f8796","B":"#a9b9c3","Y":"#eef1f3","S":"#8fa1ad","G":"#7c8d98","E":"#0b1b22","W":"#ffffff","M":"#3a3f44"}},
+    "Baby Kraken": {"rows":["..........oooLLLLooo...........",".........oLLLLLLLLBBo..........",".......ooLLSLLLLLLBBBoo........","......oLLLLLLSLLLLBBBBBo.......","......oBBBBBBBBBBSBBBBBo.......",".....oBBBSBBBBBBBBBBBBBBo......",".....oBBBBBBBBBSBBBBBSBBo......",".....oBBBBBBBBBBBBBBBBBBo......","....oBBBBBBBBBBBBBBBBBBBBo.....",".....oBBBWWWBBBBBBWWWBBBo......",".....oBBBWHEBBBBBBWHEBBBo......",".....oBBBWEEBBBBBBWEEBBBo......","......oCDDDDDDDDDDDDDDDCo......","......oDDDDDDDMMMDDDDDDo.......",".......ooDDDDDDDDDDDDoooo......","......oBBBDDDDDDDDDDooBBBo.....",".....oDDDDoBBDDDDoBBBoDDDo.....",".....oBBBoDDDDooooDDDooBBBo....","....oDDDDoBBBo....oBBBoDDDoo...","...oBPBoooDPDo....oPDDoooPBBo..","..oDDDDo.oBBBo....oBBBo.oDDDo..",".oBPooo..oDPDooo.oDPDDo..ooBBo.","oDDDoo....oBBoBBooBBoo..o.oPDo.","oBBooBo...oDDoDDoDDDo..oBo.oBBo","oDDoDo.....oBBBBDBBo...oDooDDDo",".oBBBo.....oDDoooDDo....oBDBBo.",".oDDo.......oo...oo......ooDDo."],"pal":{"o":"#24123c","L":"#b48ae0","B":"#8a5cc4","D":"#6a3fa0","P":"#e2c4f2","W":"#ffffff","E":"#0b1b22","H":"#ffffff","S":"#a77fd6","M":"#3a1f5a","C":"#d78ac0"}},
+    "Perch": {"rows":["..............o...................","...........ooosooo...oooo.........",".o........osSSsSSso.oSSSSo........","oFo......oSsSSsSSskooSSSSo.oo.....","offoo....oSsSSLLLLLLLLLLSSoLLoo...",".oFFFo..ooLLLLLLLLLLLLLLLLLGIBLo..",".offffooBKKBBKKBBKKBBKKBBGBIWEBBo.",".oFFFFBBBKKBBKKBBKKBBKKBGBBIEEBBo.","..offfBBBKKBBKKBBKKBBKKBGBBBBBBBBo","..oFFFBBBKKBBKKBBKKBBKKFFFBBBBBMMo",".offffDDDKDDDKDDDKDDDKDFFGYYYYYYo.",".oFFFFooDDDDDDDDDDDDDDDFDYYYYYYo..",".offfo..ooYYYYYYYYYYYYYYYYYYYYo...","oFFoo....oFFFFYYYYYYYYYYoooooo....","ofo......oFFFFooooFFFFoo..........",".o.......oFFFo....oFFo............","..........ooo......oo............."],"pal":{"o":"#1c2610","F":"#e07a3c","f":"#b8552a","S":"#7d8f52","s":"#55663a","k":"#1c2610","L":"#c4d76a","B":"#93b03c","D":"#6f8a2c","Y":"#efe6b0","K":"#3a4a1c","G":"#55702a","I":"#e8c24a","E":"#0b1b22","W":"#ffffff","M":"#3a2a14"}},
+    "Pufferfish": {"rows":["...........S....S.........","......T....S....S....T....",".......S..oooooooo..S.....",".......SooLLLLLLLLooS.....",".......oLLLLLLLKLLLLo.....","......oBBBBBKBBBBBKBBo..T.",".....oBBBKBBBBBBBBBBBBSS..",".o...oBBBBBBBBKBBBWWWBo...","ofoooBBBBBBKBBBBBKWHEBBo..","oFFFoBBBKBBBBBBBBBWEEBBo..",".offfBBBBBBBBKBBKBBBBBBoSS",".oFFFBBBBBKBBBBFFFBBBBBo..","offffBBBBBBBBBBFFFBBBBBMo.","oFFooYYYYYYYYYYYYFYYYYYMo.",".oo.oYYYYYYYYYYYYYYYYYYSST",".....oYYYYYYYYYYYYYYYYo...","......oYYYYYYYYYYYYYYo....","......SoYYYYYYYYYYYYoS....","....TS..oYYYYYYYYYYo..ST..",".........ooYYYYYYoo.......",".........S.oooSoo.S.......",".........T....S...T......."],"pal":{"o":"#3a2a10","F":"#c99a3a","f":"#a87c28","L":"#f0d488","B":"#ddb556","Y":"#f6ecc4","K":"#8a6420","S":"#efe2b0","T":"#8a6420","W":"#ffffff","E":"#0b1b22","H":"#ffffff","M":"#5a3e14"}},
+    "Salmon": {"rows":["...............oo..................","..............oFFo.................",".oo.........ooFFFFoooooo.ooooo.....","oFFo.....oooTKTTTTTKTTTToTTTTToo...",".offoo.ooTKTTTTTKTTTTTKTTGTTTTTTo..",".oFFFFoBBBBBBBBKBBBBBKBBGBBBIIIBo..","..offfBBBBBBKBBBBBKBBBBBGBBBIWEBBo.","..oFFFPPPPPPPPPPPPPPPPPPGPPPIEEPPo.","..offfPPPPPPPPPPPPPPPPPPGPPPPPPPMMo",".oFFFFooYYYYYYYYYYYYYYYYFFYYYYYYMo.",".offoo..ooYYYYYYYYYYYYYYFGYYYYooo..","oFFo......ooFFYYYYYYYYoooooooo.....",".oo.........oFoooooFoo.............","............oFo...oFo..............",".............o.....o..............."],"pal":{"o":"#152028","F":"#7f93a0","f":"#63757f","T":"#56738a","B":"#8aa2b2","P":"#f0a898","Y":"#f1eeea","K":"#1c2a34","G":"#5d7282","I":"#b8c4cc","E":"#0b1b22","W":"#ffffff","M":"#3a3c44"}},
+    "Catfish": {"rows":["..................o...................","...o.............oFo..................","..oFo.......oooooFFFoooooo.ooo........",".offfoo..oooLKLLLLLKLLLLKLoLLLooooo...","oFFFFFFooLLKLLLLKLLLLLKLLLKBBKBWEBBo..","offffffoBBBBBBKBBBBBKBBBBBBBBBBEEBBo..","oFFFFFFBBBBBBBBBBBBBBBBBBBBBBBBBBBBBR.","offffffBBBBBBBBBBBBBBBBBBBBYYYYYYYYYoR","oFFFFFFooYYYYYYYYYYYYYYYYFFFFYYYMMMMoR",".offfoo.oFFYYYYYYYYYYYYYYFFFYoRooooRR.","..oFo....oFFFFFFFFFooooooFFooR.R..RR..","...o.....oFFFFFFFFo......oo...R..RR...","..........oooooooo...............R...."],"pal":{"o":"#1a1a12","F":"#5b5a46","f":"#45443a","L":"#8a8a6e","B":"#6b6a55","Y":"#c8c4a6","K":"#2e2e22","R":"#3a3a2c","E":"#0b1b22","W":"#ffffff","M":"#2e2a20"}},
+    "Pike": {"rows":[".o.........oo...........................","ofo.......oFFoooooooooooooo.............",".oFoo....ooooTTTTTTTTTTTTTToooooooo.....",".offfooooTTTTSSTTTTSSTTTTSSTTTGTIIIoooo.","..oFFFFBBBSSBBBBSSBBBBSSBBBBBGBBIWEBBBBo","..offfBBBSSBBBBSSBBBBSSBBBBSSGBBIEEBBBBo","..oFFFFYYYYYYYYYYYYYYYYYYYYYYGYYYMMMMMMo",".offfooooYYYYYYYYYYYYYYYYYYYFFFYYYYoooo.",".oFoo....ooooYYYYYYYYYYYYYYoFFooooo.....","ofo.......oFooooooooooooooooFo..........",".o........oFo...............o...........","...........o............................"],"pal":{"o":"#152012","F":"#6a7d42","f":"#53643a","T":"#3f5a2a","B":"#5e7a3e","Y":"#e6e4bc","S":"#cdd68e","G":"#3a4e26","I":"#d8c46a","E":"#0b1b22","W":"#ffffff","M":"#24301a"}},
+    "Sea Bass": {"rows":[".............o..o................",".o..........osooSo..oooo.........","ofo........oSsSsSsooFFFFooooo....","oFFoo.....ooSTTTTTTTTTTFFTTTToo..","offffoo.ooTTTTTTTTTTTTTTGTTTTTTo.",".oFFFFFoBBBBBBBBBBBBBBBGBBBIIIBo.",".offfffBKKKKKKKKKKKKKKKGKBBIWEBBo",".oFFFFFBBBBBBBBBBBBBBBBGBBBIEEBBo",".offfffYYYYYYYYYYYYYYYYGYYYYYYYMo",".oFFFFFoYYYYYYYYYYYYYYYFFYYYYYMMo","offffoo.ooYYYYYYYYYYYYYFGYYYYYoo.","oFFoo.....ooFYYYYYYYYYYooooooo...","ofo.........oFFoooooFoo..........",".o...........oo....oFo...........","....................o............"],"pal":{"o":"#161d22","F":"#76838e","f":"#5d6a74","S":"#6a7783","s":"#4a5560","T":"#5d6b78","B":"#8c99a4","Y":"#e6eaed","K":"#3b4650","G":"#5c6873","I":"#c8d0d6","E":"#0b1b22","W":"#ffffff","M":"#2f353b"}},
+    "Rainbow Trout": {"rows":["...............ooooo..............",".o........o...oFFFFFo.............","ofoo.....oFoooFFFFFFFoooooooo.....","oFFFoo...oFoKLLLKLLLKLLLKLLLLoo...",".oKfffo.oLKLLLKLLLKLLLKLLGKLLLLo..",".oFFFFKoBBBKBBBKBBBKBBBKGBBBIIIBo.",".offKffBBBBBBBBBBBBBBBBBGBBBIWEBo.",".oFFFFFPPPPPPPPPPPPPPPPPGPPPIEEPo.",".offfffPPPPPPPPPPPPPPYYYFFFYYYYMMo",".oFKFFFoYYYYYYYYYYYYYYYYFFYYYYYYo.","offffoo.ooYYYYYYYYYYYYYYFYYYYYoo..","oFFoo.....ooFFFYYYYYYooooooooo....","ofo.........oFoooooFo.............",".o..........oFo...oFo.............",".............o.....o.............."],"pal":{"o":"#1d2418","F":"#8a9670","f":"#6f7a56","L":"#a9b48a","B":"#7f9068","P":"#e2848c","Y":"#f0ebe2","K":"#1d2418","G":"#5d6b4a","I":"#c9b46a","E":"#0b1b22","W":"#ffffff","M":"#3a2f22"}},
+    "Red Snapper": {"rows":["...............oo...............","............oooFfoooo...........",".o.........ofFFFfFFFfo..........","oFo.......oFfLLLLLLLLooooooo....","offo....ooLLLLLLLLLLLLLLLLLLo...",".oFFoo.oBBBBBBBBBBBBBBLGLIIILo..",".offffoBBBBBBBBBBBBBBBGBBIWEBBo.","..oFFFBBBBBBBBBBBBBBBBGBBIEEBBo.","..offfBBBBBBBBBBBBBBBBGBBBBBBBo.","..oFFFBBBBBBBBBBBBBBBYGYYYYYYYo.",".offffoYYYYYYYYYYYYYYFFFYYYYYMMo",".oFFoo.oYYYYYYYYYYYYYFFGYYYYYoo.","offo....ooYYYYYYYYYYYFYYYYYoo...","oFo.......ooFYYYYYYYYFooooo.....",".o..........oFFoooooFo..........",".............oFo...oFo..........","..............o.....o..........."],"pal":{"o":"#2a0e0a","F":"#d04a3a","f":"#a8362a","L":"#ec7a66","B":"#d6503e","Y":"#f4b6a8","G":"#a83a2c","I":"#e8584a","E":"#0b1b22","W":"#ffffff","M":"#5a1e16"}},
+    "Flounder": {"rows":["...........oFoFoFoFoFoFo........",".........oooLLLLLLLLLLLLooo.....","..oo...ooLLLLLLLLLLLLLLLLLLoo...",".oFFo.oBBBBBBBBBKKBBBKKBBBWEBo..","offffoBBBBKKBBBBBBBBBBBSBBEEBBo.","oFFFFBBBBBBSBBBBBBBKKBBBBKKBWEBo","offffBBBBBBBBKKBBBBBSBBBBBBBEEBo","oFFFFBBBBKKBBBBKKBBBBBKKBBBBBBBo","offffoBBBBBBKKBBBSBBBBBBBBBBBBMo",".oFFo.oDDDDDDDDDDDKKDDDDKKDDDMo.","..oo...ooDDDDDDDDDDDDDDDDDDooo..",".........oooDDDDDDDDDDDDooo.....","...........oFoFoFoFoFoFo........"],"pal":{"o":"#241a0e","F":"#9c8460","f":"#7d6a4c","L":"#b89e72","B":"#9c8461","D":"#806a4a","K":"#5e4d36","S":"#e3cf9e","E":"#0b1b22","W":"#ffffff","M":"#3e3020"}},
+    "Zander": {"rows":[".............o..oo....................",".o..........osooSsoo..ooooo...........","ofo........oSsSsSsSsooFFFFFo..........",".oFo.....oooSTTTTTTTTTTTTFFFooooo.....",".offoo.ooTKKTTKKTTKKTTKKTTKKGTIIIooo..","..oFFFoBBBKKBBKKBBKKBBKKBBKGBBIWEBBBo.","..offffBBBKKBBKKBBKKBBKKBBKGBBIEEBBBo.","..oFFFFBBBKBBBKBBBKBBBKBBBKGBBBBBBBBo.","..offfoYYYYYYYYYYYYYYYYYYYFFFYYYMMMMMo",".oFFoo.ooYYYYYYYYYYYYYYYYYFFGYYYooooo.",".ofo.....ooooYYYYYYYYYYYYoFooooo......","oFo..........oFooooooFooo.o...........",".o...........oFo....oFo...............","..............o......o................"],"pal":{"o":"#171d16","F":"#8b9a86","f":"#6f7c6b","S":"#7a8775","s":"#5a6656","T":"#6d7e68","B":"#94a28e","Y":"#e8ece0","K":"#4b5547","G":"#5f6c5b","I":"#e8f0f0","E":"#0b1b22","W":"#ffffff","M":"#2a3028"}},
+    "Swordfish": {"rows":["..................ooo..........................",".................oFFFo.........................",".o..............oFFFFFo........................","oFo.............oFFFFFo........................",".oFo...........ooFFFFFFoooooooo................",".oFFoo.....ooooTTTTTTTTTTTTTTTToooooo..........","..oFFFo..ooTTTTTTTTTTTTTTTTTTTTTTGTTTooooo.....","...oFFFooBBBBBBBBBBBBBBBBBBBBBBBGBWETTTTTToooo.","...oFFFFoBBBBBBBBBBBBBBBBBBBBBBBGBEEBBBBBBBBBBo","...oFFFFoYYYYYYYYYYYYYYYYYYYYYYYGYYYYYYYYYYYoo.","...oFFFooYYYYYYYYYYYYYYYYYYYYYYYGYYYYooooooo...","..oFFoo..ooYYYYYYYYYYYYYYYYYYYYYYGYoo..........","..oFo......ooooYYYYYYYYYYYYYYYYoooo............",".oFo...........ooooooFFFooooooo................","..o..................oFFo......................",".....................oFo.......................","......................o........................"],"pal":{"o":"#101a26","F":"#2f4a6a","T":"#263f5e","B":"#3d6189","Y":"#c4d2e2","G":"#2a4566","E":"#0b1b22","W":"#ffffff"}},
+    "Electric Eel": {"rows":["..........oooooooooooooooooooooooo..ooooooo...","..oo..ooooLLLLLLLLLLLLLLLLLLLLLLLLooLLLLLLLo..",".oFFooZLLLLLZLLLLLZLLLLLZLLLLLZLLLLLZLLLLWELo.","oFFFBBBZBBBBBZBBBBBZBBBBBZBBBBBZBBBBBZBBBEEBo.","oFFFBBZBBBBBZBBBBBZBBBBBZBBBBBZBBBBBZBBBBBBBo.",".oFFooYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYMMo","..oo.oFFFFYYYYYYYYYYYYYYYYYYYYYYYYFFoYYYYYooo.","......oFFFFFFFFFFFFFFFFFFFFFFFFFFFFo.ooooo....",".......oooooooooooooooooooooooooooo..........."],"pal":{"o":"#141a0c","F":"#c9b45a","L":"#6a7a48","B":"#4b5a32","Y":"#d8c46a","Z":"#fff27a","E":"#0b1b22","W":"#ffffff","M":"#2a2a18"},"glow":true},
+    "Golden Carp": {"rows":["............oooooooooo............",".o.........oFFFFFFFFFFo...........","oFo.......oFFLLLLLLLLLLooooooo....",".ofo....ooLLLZLLLZLLLZLLLLLLLLo...",".oFFoo.oBBBBBKBBBKBBBKBLLGLLLLLo..","..offfoBBBBZBBBZBBBZBBBZGBBBIIIBo.","..oFFFBBBBBKBBBKBBBKBBBKGBBBIWEBo.","..offfBBBZBBBZBBBZBBBZBBGBBBIEEBo.","..oFFFBBBKBBBKBBBKBBBKYYGYYYYYYYo.","..offfoDDDDDDDDDDDDDDDDYFFFYYYYoMo",".oFFoo.oYYYYYYYYYYYYYYYYFFYYYYoRRo",".ofo....ooYYYYYYYYYYYYYYFYYYoooRo.","oFo.......ooFYYYYYYYYYYooooo...o..",".o.........oFFooooooFoo...........","............oo.....oFo............","....................o............."],"pal":{"o":"#3a2604","F":"#e0a428","f":"#c08818","L":"#ffe08a","B":"#f0bc34","D":"#d69e22","Y":"#fbeab0","K":"#b07e10","Z":"#fff6c8","G":"#c08818","I":"#fff0a8","E":"#0b1b22","W":"#ffffff","M":"#6a4a0c","R":"#d69e22"},"glow":true},
+    "Lionfish": {"rows":["..............o................","..........S.ooRo..S...S........","..........SoRoS.SoRoS.S........",".........oRoS.SoRoS.SoRo.......","..........S.SoRoS.SoRoS........","..........SoRoSoSoRoS.S.......S","...o.....oRoSoLRRLRRSoRoooo..S.","..oFo...ooRLRRLRRLRRLRRLRRLoS..",".offfoooBRRBRRBRRBRRBRRBRRRRRo.","oFFFFFFoBRRBRRBRRBRRBRRBRRRWEo.","offffffBBRRBRRBRRBRRBRRBRRREEo.","oFFFFFFBBRRBRRBRRBRRBRRBRRBBBo.","offffffoBRBBRBBRBBRBBRBBRBBBMMo",".oFFFoooYRYYRYYRYYRYYRYYRYYYoo.","..ofo...ooYYRYYRYYRYYRYYRYYo...","...o......oRoSYRYYRYooooooo....","...........S.SoRoSoS...........","...........SoRoS.SoRo..........","..........oRoS.SoRoS...........","...........o.S...S............."],"pal":{"o":"#2a0c08","F":"#e8ddd0","f":"#c9b8a6","S":"#f2e6da","R":"#c4442e","L":"#fbf3ea","B":"#f0e4d6","Y":"#f8efe4","E":"#0b1b22","W":"#ffffff","M":"#5a1c12"}},
+    "Bluefin Tuna": {"rows":["...................o.......................",".o................oFo......................","oFo.......o.o.o.ooFFoooooooooo.............",".oFo.....oZoZoZoZoZTZTTTTTTTTTooooo........",".oFFoo....oooTTTTTTTTTTTTTTTTTTTTTTooo.....","..oFFFo..oTTTTTTTTTTTTTTTTTTTTTTTTTGTToo...","...oFFFooBBBBBBBBBBBBBBBBBBBBBBBBBGBTWEToo.","...oFFFFBBBBBBBBBBBBBBBBBBBBBBBBBBGBBEEBBBo","...oFFFFYYYYYYYYYYYYYYYYYYYYYYYYYYGYBBBBBBo","...oFFFooYYYYYYYYYYYYYYYYYYYYYYYFFFYYYMMMMo","..oFFoo..oYYYYYYYYYYYYYYYYYYYYYYFFGYYYoooo.","..oFo.....oooYYYYYYYYYYYYYYYYYYYFYYGoo.....",".oFo.....oZoZoZoZoZYZYYYYYYYYYoooooo.......","..o.......o.o.o.o.oooooooooooo............."],"pal":{"o":"#0c1426","F":"#1f3460","T":"#18294d","B":"#2c4a80","Y":"#c9d3df","Z":"#e6c34a","G":"#1d3258","E":"#0b1b22","W":"#ffffff","M":"#141e36"}},
+    "Barracuda": {"rows":["..................oo.........oo...............",".oo..............oFFo.......oFFo..............","offo......oooooooooooooooooooooooo.oooo.......",".oFFooooooKTTKKTTKKTTKKTTKKTTKKTTKoGTWEooooo..","..offffBBKKBBKKBBKKBBKKBBKKBBKKBBKGBBEEBBBBBo.","..oFFFBBBKKBBKKBBKKBBKKBBKKBBKKBBKGBBBBBBBBBBo","..offffYYYYYYYYYYYYYYYYYYYYYYYYYYYGYYYYMMMMMMo",".oFFooooooYYYYYYYYYYYYYYYYYYYYYYYYoGYYYYWoWoWo","offo......oooooooooooooooooooooooo.oooooo.o.o.",".oo.........................oFFo..............",".............................oo..............."],"pal":{"o":"#121a20","F":"#7f8f9a","f":"#64737d","T":"#6a7a86","B":"#a2b0b9","Y":"#eef1f3","K":"#38434b","G":"#5f6d77","E":"#0b1b22","W":"#ffffff","M":"#2a3036"}},
+    "Sturgeon": {"rows":[".oo......o..o..o..o..o..o..o..o.............","oFFo....oQooQooQooQooQooQooQooQo............",".oFFoo..oPPoPPoPPoPPLPPLPPoPPoPPooo.........",".oFFFFoooooLLLLLLLLLLLLLLLLLLLLooLLooo......","..oFFFFFBBBBBBBBBBBBBBBBBBBBBBBBBLLWELoooo..","...oFFFBBBBBBBBBBBBBBBBBBBBBBBBBBBBEEBBBBBo.","...oFFFBBPBBPBBPBBPBBPBBPBBPBBPBBBBBBBBBBBBo","..oFFFFoYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYoooo.",".oFoooo.oooYYYYYYYYYYYYYYYYFFFYooYYYoRoR....","oFo........oooooFoYYYYYYoooFFoo..ooo..R.R...",".o.............oFooooooo..oFo...............","................o..........o................"],"pal":{"o":"#1c1a14","F":"#5f5b4c","L":"#8a8470","B":"#6f6a5a","Y":"#cfc8b0","P":"#d8d0b8","Q":"#a8a088","R":"#8a8470","E":"#0b1b22","W":"#ffffff"}},
+    "Silver Arowana": {"rows":["............o...............................",".........oooFo..............................","...o....oFFFFFo.oooooooooooo................","..oFoo..oFFFFFooTTTZTTTTZTTTooooo..ooo......",".offffo..ooTTTKKTTTKKTTTKKTTTKKTTooTTToooooR","oFFFFFFooBBBZBBBBZBBBBZBBBBZBBBBZBBTTWETTTTR","offffffBBBBBKKBBBKKBBBKKBBBKKBBBKKBBBEMMMMMo","oFFFFFFBBZBBBBZBBBBZBBBBZBBBBZBBBBBBBBBBBBBo","offffffBBKKBBBKKBBBKKBBBKKBBBKKBBBBYYYYYYoo.","oFFFFFFooYYYZYYYYZYYYYZYYYYZYYYYZYYYYYYoo...",".offffo..ooYKKYYYKKYYYKKYYYKKYYYKKoYooo.....","..oFoo..oFFFFFooYYYYYYYYYYYYoooooo.o........","...o....oFFFFFo.oooooooooooo................",".........oooFo..............................","............o..............................."],"pal":{"o":"#1c242a","F":"#a9b6bf","f":"#8c99a3","T":"#a2b0ba","B":"#c9d3da","Y":"#eef2f4","K":"#93a2ad","Z":"#ffffff","E":"#0b1b22","W":"#ffffff","M":"#4a555c","R":"#8c99a3"},"glow":true},
+    "Great White Shark": {"rows":[".......................ooo...................",".o....................oBBBo..................","oBo...................oBBBBo.................",".oBoo..............oooBBBBBoooo..............",".oBBBo.......ooooooLLLLLLLLLLLLoooooooo......","..oBBBo...oooLLLLLLLLLLLLLLLLLLLLLLLLLLooo...","..oBBBBoooBBBBBBBBBBBBBBBBBBBBBBBBBBBBWBBBoo.","..oBBBBBBBBBBBBBBBBBBBBBBBBBBBBGBGBBBBEEBBBBo","...oBBBBBBBBBBBBBBBBBBBBBBBBBBBBGBBBBBBBBBBBo","...oBBBBYYYYYYYYYYYYYYYYYYYYYYYGYGYYYYYYYYoo.","...oBBBBBYYYYYYYYYYYYYYYYYYYYYYYYYYMMMMMMMo..","...oBBBoooooYYYYYYYYYYYYYYYYYYYYYYYYTYToTo...","..oBBBo.....ooDooYYYYYYYYYYYYYYYYoooooo.o....","..oBoo........o..ooooooDDDDDooooo............","..oo.................oDDDDDo.................",".oBo.................oDDDDDo.................","..o..................oDDDDo..................","......................oDDo...................",".......................oo...................."],"pal":{"o":"#1b252c","B":"#7f8f9b","D":"#62717c","L":"#a7b5bf","Y":"#f2f4f4","G":"#4d5a63","E":"#0b1b22","W":"#ffffff","M":"#3a1f22","T":"#ffffff"}},
+    "Hammerhead Shark": {"rows":["......................oo....................",".....................oBBo..............oooo.",".o..................oBBBo.............oLLLLo","oBo.................oBBBBo............oBBWEo",".oBoo..............oBBBBBoo.........oooBBBEo",".oBBBo.......oooooooBLLLLLLoooooooooLLLBBBBo","..oBBBo...oooLLLLLLLLLLLLLLLLLLLLLLoLLLLBBBo","..oBBBBo.oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo","..oBBBBBoBBBBBBBBBBBBBBBBBBBBBBBGBBBBBBBBBBo","...oBBBBBBBBBBBBBBBBBBBBBBBBBBBGBGBBBBBBBBBo","...oBBBBYYYYYYYYYYYYYYYYYYYYYYYYGYYYBBBBBMBo","...oBBBBBoYYYYYYYYYYYYYYYYYYYYYYYYYYBBBBBMBo","...oBBBoo.ooYYYYYYYYYYYYYYYYYYYYYYYYYYYYBMBo","..oBBoo.....ooDoooYYYYYYYYYYYYooooooYYYBBBBo","..oBo.........o...ooooDDDDoooo......oooBBBWo","...o................oDDDDDo...........oDDDEo","....................oDDDDo............oDDDDo","....................oDDDDo.............oooo.",".....................oooo..................."],"pal":{"o":"#18232b","B":"#7a8a7f","D":"#5e6d63","L":"#9fb0a4","Y":"#eef1ec","G":"#48564d","E":"#0b1b22","W":"#ffffff","M":"#3a2a2a"}},
+    "Giant Squid": {"rows":[".....o....oooooooooooooo...oo.................","....oFooooLLLLLLLLLLLLLLoooBBo.......ooooo.oo.","...oFFFLLLLLLSLLLLLLLSLLLLBBBBo....ooDDDDDoBBo","..oFFFBBBSBBBBBBBSBBBBBBBBWWWBBooooDDoooooDPBo",".oFFFBBBBBBBBBBBBBBBBBBBSBWHEBBDDDDBBBBBo.oBBo","oFFFFBBBBBBBBBBBBBBBBBBBBBWEEBBDDBBooooo...oo.",".oFFFBBBBBBBSBBBBBBBSBBBBBBBBBBBBooooDDDo.....","..oFFFDDDDDDDDDDSDDDDDDDDDDDDDDDDooDDooo......","...oFFFDDDDDDDDDDDDDDDDDDDDDDDBDDDDooooBo.....","....oFooooDDDDDDDDDDDDDDoooDDDDBDooDDDDDoo.oo.",".....o....oooooooooooooo...ooooDBDDBBoooDDoBBo","............................oDDDDoooo...ooDPBo","............................oDDDDo........oBBo",".............................oooo..........oo."],"pal":{"o":"#2a0e10","F":"#b8483e","B":"#c85a4a","D":"#9a3a32","L":"#e48a74","S":"#f2b0a0","P":"#f6c8bc","W":"#f6e8c8","E":"#0b1b22","H":"#ffffff"}},
+    "Manta Ray": {"rows":["................o........o................","...............oBo.....ooBo...............","................oBoooooBBo................","................oooLLLooo.................",".............oooLLWLLLLWLooo..............","...........ooLLLLLELLLLELLLLooo...........",".........ooLLLLLLLLLLLLLLLLLLLLoo.........","........oBBBBBBBBBBBBBBBBBBBBBBBBo........","......ooBBBBBBBBBBBBBBBBBBBBBBBBBBoo......","....ooBBBBBBBBSBBBBBBBBBBBBSBBBBBBBBoo....","...oBBBBBBBBBBBSBBBBBBBBBBSBBBBBBBBBBBo...",".ooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBoo.","oBBBBBBBBBBSBBBBBBBGGGGBBBBBBBSBBBBBBBBBBo",".ooDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDoo.","...oooooDDDDDDDDDDDDDDDDDDDDDDDDDDooooo...","........oooooDDDDDDDDDDDDDDDDooooo........",".............ooooDDDDDDDDoooo.............",".................oooDDDoo.................","...................oDDDo..................","....................oDo...................","....................oDo...................","....................oDo...................","....................oDo...................","....................oDo...................","....................oDo...................","....................oDo..................."],"pal":{"o":"#0c1420","L":"#41546e","B":"#2d3e56","D":"#22314a","S":"#c8d6e4","G":"#1a2638","E":"#0b1b22","W":"#ffffff"}},
+    "Crystal Jellyfish": {"rows":["......oooooooooo......","....ooHHHHHHHHHHoo....","...oHHHWHHHHHHHHHHo...","..oLLLWLLLLLLLLLLLLo..",".oLLLWLLLLLLLLLLLLLLo.","oLLLLLLLLLGGLLLLLLLLLo","oLLLLLLLGGGGGGLLLLLLLo","oBBBBBBGGZZZZGGBBBBBBo","oBBBBBBGZZZZZZGBBBBBBo","oBBBBBBGGZZZZGGBBBBBBo","oBBBBBBBGGGGGGBBBBBBBo","oBBBBBBBBBGGBBBBBBBBBo","oBBBBBBBBBBBBBBBBBBBBo","oDBBBBBBBBBBBBBBBBBBo.",".ooLDDDLDLDDDLDLDDDLo.","...SDDDSDSDDDSDSDDoS..","...SooDSDSDDDSDSoo.S..","....S.S.o.SoS.o.S.S...","...oLoLo.oLoLo.oLoLo..","....S.S...S.S...S.S...","...S...S.S...S.S...S..","...S...S.S...S.S...S..","..oLo.oLoLo.oLoLo.oLo.","...oS.So.oS.So.oS.So..","......S...S.....S.S...","......So.oS....oS.So..","......oLoLo...oLo.oLo.",".......S.S.....S...S..",".........S.........S..","..........S.......S..."],"pal":{"o":"#1a3c52","H":"#ecfaff","L":"#bfeaf6","B":"#8fd2e8","D":"#6abcd8","G":"#e6f8ff","Z":"#ffffff","S":"#9fdcef","W":"#ffffff"},"glow":true},
+    "Giant Oarfish": {"rows":["....................................................o..o......",".........................o.o.o.o.o.o.o.o...........oRooRo.....","...................o.o.ooRoRoRoRoRoRoRoRoo.o.o......oRooRo....",".o.......o.o.o.o.ooRoRoRLLLLLLLLLLLLLLLLLRoRoRoo.oooooRRoo....","oRoo.o.ooRoRoRoRoRoLLLLLBBBBBBBBBBBBBBBBBLLLLLoRoRRRRRRLLLoo..","oLoRoRoRoLLLLLLLLLLBBBBBBBBBBBBBBBBBBBBBBBBBBBLLLLLLLLLLLLLLo.","oBLLLLLLLBBBBBBBBBBBBBBBKBBBBKBBBBKBBBBKBBBBBBBBBBBBBBBBBBBBBo","oBBBBBBBBBBBBBBBBBBKBBBBYYYYYYYYYYYYYYYYYBBBKBBBBBBBBBBBBWEBBo","oYBBKBBBBKBBBBKBBBBYYYYYYYYYYYYYYYYYYYYYYYYYYYBBBBBBBBBBBEEBBo","oYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYMMo",".oYYYYYYYYYYYYYYYYYYYYYYoooooooooooooooooYYYYYYYYYYYYYYYYYYYo.","..oooooooYYYYYYYYYYooooo.................oooooYYYYYYYYYYYYoo..",".........oooooooooo...........................oooooooooooo...."],"pal":{"o":"#1e242a","L":"#e6ecf0","B":"#c4ced6","Y":"#eef2f4","K":"#8fa1ad","R":"#d8473b","E":"#0b1b22","W":"#ffffff","M":"#4a5056"}},
+    "Ocean Sunfish": {"rows":[".............oooo............","............oFFFFo...........","............oFFFFo...........","...........oFFFFFo...........","...........oFFFFFo...........","...........oFFFFFoo..........","........oooLLLLLLLLooo.......",".......oLLLLLLLLLLLLLLo......","..o..ooLLLLLLLLLLLLLLLLoo....",".oFooLLLLLLLLLLLLLLLLLLLLo...","oFo.oBBBBBBBBBBBBBBBBBBBBo...",".oFoBBBBBBBBBBSSBBBBBBBBBBo..","oFoBBBBBBSSBBBBBBBBBBBBBBBBo.",".oFFBBBBBBBBBBBBBBBBBBIIIBBo.","oFFBBBBBBBBBBBBBBSSBBBIWEBBBo",".oFFBBBBBBBBBBBBBBBBBBIEEBBBo","oFFBBBBBBBBBBBBBBBBBBFFBBBBBo",".oFFBBBBBBBBBBBBBBBBFFFBBBBMo","oFFBBBBSSBBBBBBBBBBBBFFBBBBMo",".oFFBBBBBBBBBBBBBBBBBBFBBBBBo","oFoBBBBBBBBBSSBBBBBBBBBBBBBo.",".oFFDDDDDDDDDDDDDDDDSSDDDDDo.","oFooDDDDDDDDDDDDDDDDDDDDDDo..",".oFooDDDDDDDDDDDDDDDDDDDDo...","oFo.oDDDDDDDDDDDDDDDDDDDDo...",".oFo.ooDDDDDDDDDDDDDDDDoo....","..o....oDDDDDDDDDDDDDDo......","........oooDDDDDDDDooo.......","...........oFFFFFoo..........","...........oFFFFFo...........","...........oFFFFFo...........","............oFFFFo...........","............oFFFFo...........",".............oooo............"],"pal":{"o":"#1c242c","F":"#7f8d99","L":"#b6c2cc","B":"#97a5b1","D":"#7a8894","S":"#c8d2da","I":"#c8d2da","E":"#0b1b22","W":"#ffffff","M":"#3e464e"}},
+    "Ancient Coelacanth": {"rows":["..............oo.....oo.................",".............ofFo...ofFo................","...oo........oFFFo..oFFFo...............","..oFFo........oFBoooooFBoooo............","...oFFo....oooLLBBLLLLLBBLLLooo.........","....oFFo.ooLLLLLLLLLLLLLLLLLLLLoo.......","...oFFFFoBBBBBBSBBBBBSBBBBBBBBLLBoooo...","..oFFFFFBBBBSBBBBBBBBBBBSBBBBBGBBSBBBoo.",".oFFFFFFBBBBBBBBBBSBBBBBBBBBBGSBIIIBBBBo","offFFFFBBBBBBBBBBBBBBBBBBBSBBGBBIWEBBBBo",".oFFFFFFBBBBBBSBBBBBSBBBBBBBBGBBIEEBBBBo","..oFFFFFDDDSDDDDDDDDDDDDDDDDDGDDDDDDDDDo","...oFFFFoDDDDDDDDSDDDDDSDDDDSDGDDDDMMMMo","....oFFo.ooDDDDDDDDDDDDDDDDDDDDDooooooo.","...oFFo....oooDDDDDDDDDDDDDDoooo........","..oFFo........oooBBoooooBBoo............","...oo..........oFBo...oFBo..............","..............oFFFo..oFFFo..............","..............ofFo...ofFo..............."],"pal":{"o":"#0a1424","F":"#2c4a7a","f":"#1e3560","L":"#3c5f96","B":"#2a4a80","D":"#1f3866","S":"#e8f0ff","G":"#1a2e54","I":"#e6c34a","E":"#0b1b22","W":"#ffffff","M":"#0f1c34"}},
+    "Moonlight Koi": {"rows":[".................ooooooo............","..o.............oFFFFFFFo...........",".oFo...........oFFFFFFFFFo...Z......","oFFFo.....Z...oFFFFFFFFFFooooo......","oFfFFo.....oooLLLLLLLRRLFFLLLLoo...Z","oFFFFFo..ooLLRRRLLLLRRRRLLLRLLLLo...","oFFFfFFooBBBRRRRRBBBBRrBBBBRBBBBBo..",".oFFFFFFBBBBBRRrBBBBBBBBBBBBBBWEBo..","ofFFFFFFBBBBBBBBBBBBBBBBBBBBBBEEBo..",".oFFFFFFBBBBBBBBBRBBBBBBBBBBBBBBBo..","oFFFFFFFoYYYYYYYYRYYYYYYYYYYYYYYYo..","oFFFfFFo.oYYYYYYYYYYYYYYYYYYYYYYMMo.","oFFFFFo...ooYYYYYYYYYYYYYYYYYYoooPPo","oFfFFo......ooFFFooooFFooooooo...oo.",".oFFo........oFFFo..oFFo............","..oo..........oFo....oo.............","...............o...................."],"pal":{"o":"#2a2630","F":"#e9ecf4","f":"#c8cfe0","L":"#ffffff","B":"#f1f2f6","Y":"#dde1ec","R":"#e0563f","r":"#c0402c","E":"#0b1b22","W":"#ffffff","M":"#6a5a60","P":"#e9ecf4","Z":"#fff4a3"},"glow":true},
+    "Ghost Carp": {"rows":["............oooooooooo............",".o.........oFFFFFFFFFFo...........","oFo.......oFFLLLLLLLLLLooooooo....",".ofo....ooLLLLLLLLLLLLLLLLLLLLo...",".oFFoo.oBBBBBKBBBKBBBKBLLLLLLLLo..","..offfoBBBBBBBBBBBBBBBBBBBBBZEBBo.","..oFFFBBBBBKBBBKBBBKBBBKBBBBEEBBo.","..offfBBBSBSBSBSBSBSBSBSBBBBBBBBo.","..oFFFBBBKBBBKBBBKBBBKBBBBBBBBBBo.","..offfoYYYYYYYYYYYYYYYYYYYYYYYYoMo",".oFFoo.oYYYYYYYYYYYYYYYYYYYYYYoMo.",".ofo....ooYYYYYYYYYYYYYYYYYYoo.o..","..o.......ooFYYYYYYYYYYooooo......","...........oFFooooooFoo...........","............oo.....oFo............","....................o............."],"pal":{"o":"#3c5a66","F":"#bfe2e6","f":"#a2d0d6","L":"#f2fcfc","B":"#d6eef0","Y":"#eaf8f8","K":"#b0d4d8","S":"#eaf8f8","E":"#4a7f8a","Z":"#ffffff","M":"#7fa8b0"},"glow":true,"ghost":true},
+    "Abyssal Anglerfish": {"rows":[".......................oooo........","......................oRRRRo.......","..............ooo....oRooooRo......",".............oFFFooooRo....oRoo....","...........ooFFFFFFLRLooo..oGGGo...",".........ooLLLLLLLLLLLLLLoooGZGo...",".o.....ooLLLLLLLLLLLLLLLLLLoGGGo...","oFo...oBBBBBBBBBBBBBBBBBBBBBBoo.o..","oFFo..oBBBBBBBBBBBBBBBWEBBBBBoooXo.",".oFFooBBBBBBBBBBSBBBBBEEBBBBBXTXTo.",".oFFFBBBBBBBBBBBBBBBBBBBTBTXTXXTXo.",".oFFFBBBBBSBBBBBBBBBBBBXXTXXTXXXXo.",".oFFoBBBBBBBBBBBBBBBBBXXXXXXXXXXXo.","oFFooBBBBBBBBBBBBBBBBBXXXXXXXXXXXo.","oFo.oBBBSBBBBBBBBBBBBBBXXXXXXXXXXXo",".o...oBBBBBBBBSBBBBBBBBXXXXXXXXXXXo","......oDDDDDDDDDDDDDDDDDDXXXXXXXXXo","......oDDDDDDDDDDDDDDDDDDTDTXTXXXXo",".......ooDDDDDDDDDDDDDDDDDDooooTXTo",".........ooDDDDDDDDDDDDDDoo....ooo.","...........oooDDDDDDDDooo..........","..............oooooooo............."],"pal":{"o":"#07090e","F":"#2c2a3c","L":"#4a4560","B":"#36324a","D":"#26233a","X":"#0e0b16","T":"#e8e6d8","R":"#4a4560","G":"#fff4a3","Z":"#ffffff","S":"#5a5476","E":"#0b1b22","W":"#d8e8ff"},"glow":true},
+    "The Pixel Whale": {"rows":["..........................................P.......P............","...........................................P..P..P.............","..o...................oo....................P.P.P..............",".oBo.................oBBo....................P.P...............","..oBo...............oBBBBoooooooooooooo.......P................","..oBBo.............oBBBBBBLLLLLLLLLLLLLooooo..Pooooooooo.......","..oBBBo.........ooooLLLLLLLLLLLLLLLLLLLLLLLLooLLLLLLLLLLoo.....","...oBBBoo.....ooLLLLLLLLLLLLLLSLLLLLLLLLLLLLSLLLLLLLLLLLLLoo...","...oBBBBBoo..oBBBBBBBBBBSBBBBBBBBBBBBBBBBBLLLLLLLLLLLLLLLLLLo..","...oBBBBBBBooBBBBBBBBBBBBBBBBBBBBBBBBBSBBBBBBBBBBBSBBBBBBBBBBo.","....oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.","....oBBBBBBBBBBBBBSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo","...oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBWEBBBBBBo","...oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBEEBBBBBBo","..oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo","..oBBBBooooBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.",".oBBBoo...oYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYMMMMMMMMMMMMMMo.",".oBBo......ooYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYo..","oBoo.........oYYYYYYYYYYYYYYYYGYGYGYGYGYGYGYGYGYGYGYGYGYGYoo...",".o............ooYYYYYYYYYYYYYYGYGYGYGYGYGYGYGYGYGYGYGYGYoo.....","................ooooYYYYYYYYYYGYGYGYGYGYGYGYoooooooooooo.......","....................oooooYYYYYDDDDDDYYYooooo...................",".........................ooooDDDDDDoooo........................","............................oDDDDDo............................","...........................oDDDDDo.............................","............................oDDDo..............................",".............................ooo..............................."],"pal":{"o":"#0a1628","B":"#3a6aa8","D":"#2c5490","L":"#5a8ac6","Y":"#c4d8ea","G":"#94b2cc","S":"#7aa4d6","E":"#0b1b22","W":"#ffffff","M":"#1a2e4c","P":"#bfe6ff"}},
+    "Twig Rod": {"rows":[".........................o...","........................oWo..",".......................oWwoL.","......................oWwo.L.",".....................oWWWo.L.","....................oWwoo..L.","...................oWwo....L.","................oooWwo.....L.","...............oGgWWWo.....L.","................oGgoo......L.","...............oWwWo.......L.","..............oWWwo........L.","..............oWWo.........L.",".............oWwo..........L.","............oWwo...........L.","...........oWwo............L.","..........oWWo.............L.",".........oWwo..............L.","........oWwo...............L.",".......oWwo................L.","......oWWo................oLo",".....oCWWo...............oHoH","....occWo................oHHo","...oCCoo..................oo.","..occo.......................",".oCCo........................","oWWo.........................",".oo.........................."],"pal":{"W":"#7a5232","w":"#9a6c42","C":"#6b4a2f","c":"#5a3a22","o":"#1a1008","L":"#d8e2e6","H":"#9aa5ad","G":"#7fb04a","g":"#5e8a34"}},
+    "Bamboo Rod": {"rows":[".........................o...","........................oNo..",".......................oWwoL.","......................oWwo.L.",".....................oWNNo.L.","....................oWwoo..L.","...................oWwo....L.","..................oWwo.....L.",".................oWNNo.....L.","................oWwoo......L.","...............oWwo........L.","..............oWWwo........L.","..............oNNo.........L.",".............oWwo..........L.","............oWwo...........L.","...........oWwo............L.","..........oNNo.............L.",".........oWwo..............L.","........oWwo...............L.",".......oWwo................L.","......oCCoo...............oLo",".....oCRRRRo.............oHoH","....occRrRRoo............oHHo","...oCCoRRkRrro............oo.","..occooRRRRoo................",".oCCo..oooo..................","oYYo.........................",".oo.........................."],"pal":{"W":"#c9b36a","w":"#e3d08a","Y":"#c9b36a","C":"#d8c48a","c":"#b8a46a","R":"#7a6a4a","r":"#5a4a2e","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","H":"#9aa5ad","N":"#7d8a3e"}},
+    "Steel Rod": {"rows":[".........................o...","........................oYo..",".......................oWwoL.","......................oWwo.L.",".....................oWYYo.L.","....................oWwoo..L.","...................oWwo....L.","..................oWwo.....L.",".................oWYYo.....L.","................oWwoo......L.","...............oWwo........L.","..............oWWwo........L.","..............oYYo.........L.",".............oWwo..........L.","............oWwo...........L.","...........oWwo............L.","..........oYYo.............L.",".........oWwo..............L.","........oWwo...............L.",".......oWwo................L.","......oCCoo...............oLo",".....oCRRRRo.............oHoH","....occRrRRoo............oHHo","...oCCoRRkRrro............oo.","..occooRRRRoo................",".oCCo..oooo..................","oYYo.........................",".oo.........................."],"pal":{"W":"#7f8c95","w":"#b8c4cc","Y":"#4a555c","C":"#2f3a40","c":"#46525a","R":"#9aa5ad","r":"#cfd8de","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","H":"#9aa5ad"}},
+    "Golden Rod": {"rows":[".........................o...","........................oGo..","........................oYGo.",".......................oWwoL.","......................oWwo.L.",".....................oWYYo.L.","....................oWwoo..L.","...................oWwo....L.","..................oWwo.....L.",".................oWYYo.....L.","................oWwoo......L.","...............oWwo........L.","..............oWWwo........L.",".............oGYYo.........L.",".............oWwo..........L.","............oWwo...........L.","...........oWwo............L.","..........oYYo.............L.",".........oWwo..............L.","........oWwo...............L.",".......oWwo................L.","......oCCoo...............oLo",".....oCRRRRo.............oHoH","....occRrRRoo............oHHo","...oCCoRRkRrro............oo.","..occooRRRRoo................",".oCCo..oooo..................","oYYo.........................",".oo.........................."],"pal":{"W":"#e8b22a","w":"#ffe07a","Y":"#fff4a3","C":"#8a5a2e","c":"#6a4220","R":"#f0c23a","r":"#c48f18","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","H":"#9aa5ad","G":"#ffffff"},"glow":true},
+    "Kraken Rod": {"rows":["..........................o..",".........................oGo.","........................oGo..",".......................oWwoL.","......................oWwo.L.",".....................oWYYo.L.","....................oWwoo..L.","...................oWSo....L.","..................oWwo.....L.",".................oWYYo.....L.","................oWwoo......L.","...............oWSo........L.","..............oWWwo........L.","..............oYYo.........L.",".............oWwo..........L.","............oSwo...........L.","...........oWwo............L.","..........oYYo.............L.","....oo...oTTo..............L.","...oTTo.oTwoTo.............L.","..oTooToWwo.o..............L.","..oTo.oCCoo...............oLo","...oToCRRRRo.............oHoH","....occRrRRoo............oHHo","...oCCoRRkRrro............oo.","..occooRRRRoo................",".oCCo..oooo..................","oYYo.........................",".oo.........................."],"pal":{"W":"#7d4fb0","w":"#a77fd6","Y":"#3a2060","C":"#4a2a70","c":"#3a2060","R":"#9b6fd0","r":"#6a3fa0","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","H":"#9aa5ad","T":"#9b6fd0","S":"#e2c4f2","G":"#d8b8ff"},"glow":true},
+    "Founder's Rod": {"rows":[".........................o...","........................oGo..","........................oYGo.",".......................oWwoL.","......................oWwo.L.",".....................oWYYo.L.","....................oWwoo..L.","...................oWwo....L.","..................oWwo.....L.",".................oWYYo.....L.","................oWwoo......L.","...............oWwo........L.","..............oWWwo........L.","..............oYYo.........L.",".............oWwo..........L.","............oWwo...........L.","...........oWwo............L.","..........oYYo.............L.",".........oWwo..............L.","........oWwo...............L.",".......oWwo................L.","......oCCoo...............oLo",".....oCRRRRo.............oHoH","....occRrRRoo............oHHo","...oCCoRRkRrro............oo.","..occooRRRRoo................",".oCCo..oooo..................","oYYo.........................",".oo.........................."],"pal":{"W":"#5a3a22","w":"#7a5232","Y":"#f0c23a","C":"#c9a26a","c":"#a7804a","R":"#f0c23a","r":"#c48f18","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","H":"#9aa5ad","G":"#fff4a3"},"glow":true},
+    "Candy Cane Rod": {"rows":[".........................oSWo","........................oWooS","........................oWo.o",".......................oWwoL.","......................oSwo.L.",".....................oSYYo.L.","....................oWwoo..L.","...................oSwo....L.","..................oSSo.....L.",".................oWYYo.....L.","................oSwoo......L.","...............oSSo........L.","..............oWWSo........L.","..............oYYo.........L.",".............oSSo..........L.","............oWSo...........L.","...........oWwo............L.",".....o.o..oYYo.............L.","....oBoBooWSo..............L.",".....oboBWwo...............L.",".....oBoSSo................L.","......oCSoo...............oLo",".....oCRRRRo.............oHoH","....occRrRRoo............oHHo","...oCSoRRkRrro............oo.","..occooRRRRoo................",".oSSo..oooo..................","oYYo.........................",".oo.........................."],"pal":{"W":"#d8343a","w":"#e8565a","Y":"#ffffff","C":"#f4efe6","c":"#ddd6ca","R":"#2f7a4f","r":"#1f5a3a","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","H":"#9aa5ad","S":"#ffffff","B":"#2f9a5a","b":"#1f6a3e"}},
+    "Old Boot": {"rows":["....oooooooo.........","...oDDBBBBBDo........","...oLBBBBBBBo........","..oLLBKTTTKBo........","..oLLBBBBBBBo........","..oLLBKTTTKBo........","..oLLBBBBBBBo........","..oLLBKTTTKBo........",".oLLLBBBBBBBo........",".oLLLBKTTTKBo........",".oLLLBBBBBBBoo.......",".oLLLBBBBBBBBBooo....",".oLLLBBBBBBBBBBBBoo..","oLLLLDBBBBBBBBBDBBBo.","oLLLLBBBBBBBBBDBBBBo.","oLLLLBBBBBBBBBBBBBHHo","oLLLLBBBBBBBBBBBBBBo.",".oDDDDDDDDDDDDDDDDDDo","oSSSSSSSSSSSSSSSSSSSS",".oooooooooooooooooooo"],"pal":{"o":"#1e140c","B":"#6b4a2f","L":"#83603e","D":"#4e3420","S":"#2e2016","K":"#2e2016","T":"#c9b89a","H":"#2e2016"}},
+    "Tin Can": {"rows":["..oRRooo........",".ooooRRRooooooo.","oRRRRRRRRRRRRRRo",".oBLLBBBBBBBBBo.",".oBLLBBBBBBBBBo.",".oBLLBBBBBBBUBo.",".oBLLBBBBBBBBBo.",".oPppPPPPPPPPPo.",".oKppKKKKKKKKKo.",".oPppPPPPPPPPPo.",".oPppPPPPPPPPPo.",".oKppKKKKKKKKKo.",".oPppPPPPPPPPPo.",".oBLLBBBBBBBBBo.",".oBLLBBBBBBBUBo.",".oBLLBBBBBBUBBo.",".oBLLBBBBBBBBBo.",".oDDDDDDDDDDDDo.","oRRRRRRRRRRRRRRo",".oooooooooooooo."],"pal":{"o":"#1c2226","B":"#9aa5ad","L":"#cfd8de","D":"#6f7a82","R":"#7f8a92","P":"#c0504d","p":"#d8706a","K":"#f0e6da","U":"#a8643a"}},
+    "Soggy Sock": {"rows":[".oooooooo......","oRRRRRRRRo.....","oRRRRRRRRo.....","oLLBBBBBo......","oRRRRRRRRo.....","oLLBBBBBo......","oLLBBBBBo......","oLLBHBBBo......","oLLBBBBBo......","oLLBBBBBo......","oLLBBBHBo......","oLLBBBBBBo.....","oLLBBBBBBBoo...","oLLBBBBBBBBBo..",".oLBBBBBBHBBBo.","..oBBBBBBBBBBo.","...oBBBBBBDDDDo","....oBBBBBDDDDo",".....ooooooooo.","...Q.....Q....."],"pal":{"o":"#1e1c18","B":"#c9c4b4","L":"#e3ded0","D":"#a39e8e","R":"#b54a4a","H":"#8e897b","Q":"#8fd2e8"}},
+    "Clump of Seaweed": {"rows":["......oo........",".....oBBo.......","......oBBo......","..oo..oBPPo.....",".oDLo.oBLo......",".oDDo.oBBooo....","oDDoo.oBBoDDo...","oDDPPooBBoDDo...","oDDoooBBoDDoo.oo","oDLo.oBLoDLPPoBL","oDDooBBooDDooBBo","oDDooBBooDDooBBo",".oDDoBBooDDoBBo.",".oDDoBBooDDoBBo.","..oDLBLo.oDLBLo.","..oDDBBo.oDDBBo.","..oDDoBBo.oDBBo.","..oDDoBBo.oDBBo.","..oDDooBBooDDBBo","..oDLooBLooDLBLo",".oDDo.oBBooDDoBB",".oDDo.oBBooDDoBB"],"pal":{"o":"#0e2410","B":"#3f8a4a","D":"#2e6a3a","L":"#6aae6a","P":"#a6d49a"}},
+    "Broken Fishing Rod": {"rows":["...............ooo.........","..............oJJJo........",".............oJooWwo.......",".............oo.LoWwo......","............oWwoL.oWwo.....","...........oWwo..L.oWwo....","..........oYYo....L.oWwo...",".........oWwo......L.oWwo..","........oWwo..........oWwo.",".......oWwo............oWwo","......oCCoo.............oo.",".....oCRRRRo...............","....occRrRRoo..............","...oCCoRRkRrro.............","..occooRRRRoo..............",".oCCo..oooo................","oYYo.......................",".oo........................"],"pal":{"W":"#7f8c95","w":"#b8c4cc","Y":"#4a555c","C":"#2f3a40","c":"#46525a","R":"#9aa5ad","r":"#cfd8de","o":"#1a1008","k":"#1a1008","L":"#d8e2e6","J":"#e3d08a"}},
+    "Rusty Anchor": {"rows":["........oBBBBo........","........oBooBo........","........oBooBo........","........oBBBBo........",".....oooooLBooooo.....","....oBBBBBLBBUBBBo....","....oDDDDDLBDDDDDo....",".....oooooLBooooo.....",".........oLBo.........",".........oLUo.........","..o......oLBo......oo.",".oBo.....oLBo.....oBDo","oBBo.....oLBo......oBo","oBDo.....oLBo.....oDBo",".oBo.....oLBo.....oBo.",".oBo.....oUBo.....oBo.","..oDo....oLBo....oDo..","..oBBoo..oLBo..ooBBo..","...oBUBo.oLBo.oBoBo...","....ooBBoBLBBoBUoo....","......oBoBLBBoBo......",".......o.oooo.o......."],"pal":{"o":"#1a1410","B":"#6a6460","L":"#8a837e","D":"#4c4844","U":"#b0602e"}},
+    "Torn Net": {"rows":["K.....K.....K.....K.....",".B.ooB.B...B.B...B.B...B","..oFFo..B.B...B.B...B.B.",".oFfFFo..K.....K.....K..",".oFFFFo.B.B...B.B...B.B.",".BoooB.B...B.B...B.B...B","K.....K.....K.....K.....",".B...B.B...B.B...B.B...B","..B.B...B.B...B.B..BB.B.","...K.....K...........K..","..B.B...B.BB........B.B.",".B...B.B...............B","K.....K.................",".B...B.B...............B","..B.B...B.............B.","...K.....K...........K..","..B.B...B.B.........B.B.",".B...B.B...B.......BB..B","K.....K.....KB....K.....",".B...B.B...B.B...B.B...B","..B.B...B.B...B.B...B.B.","...K.....K.....K.....K.."],"pal":{"o":"#2a2416","B":"#d6c69a","K":"#8a7a54","F":"#e06a3a","f":"#ffffff"}},
+    "Worm": {"rows":[".............ooo....","....ooo.....oRBBooo.","...oRBBo...oBDDDRBEo","..oBDDDRoooBDoooDBBo",".oBDoooDBBRDo...oDo.","oRDo...oDDDo.....o..","oDo.....ooo.........",".o.................."],"pal":{"o":"#3a1416","B":"#e08a8a","D":"#c06a6e","R":"#c86a70","E":"#3a1416"}},
+    "Glow Lure": {"rows":["......L.....","......L.....","......L.....","......L.....","....ooLo....","...oGGGGo...","..oGZZZZGo..",".oGZZWZZZGo.",".oGZWZZZZGo.","oGBBBBBBBBGo","oGBBBBBBBBGo","oGBBBBBZBBGo",".oGBBBBBZGo.",".oGBBBBBBGo.","..oGBBBBGo..","...oGGGGo...","....ooKo....",".....oKo....","....ooKoo...","...oKoKoKo..","....oKoKo...",".....o.o...."],"pal":{"o":"#3a2a08","L":"#d8e2e6","K":"#9aa5ad","G":"#fff4a3","B":"#f0c23a","Z":"#ffe07a","W":"#ffffff"},"glow":true},
+    "Chest": {"rows":["...oooooooooooooooooo...","..oLYLLLLLLLLLLLLLLYLo..",".oLLYLLLLLLLLLLLLLLYLLo.",".oBBYBBBBBBBBBBBBBBYBBo.",".oBBYBBBBBBBBBBBBBBYBBo.","oBBBYBBBBBGYYYBBBBBYBBBo","oKKKYKKKKKYYYYKKKKKYKKKo","oBBBYBBBBBYKKYBBBBBYBBBo","oBBBYBBBBBYKYYBBBBBYBBBo","oBBBYBBBBBYYYYBBBBBYBBBo","oBBBYBBBBBBBBBBBBBBYBBBo","oBBBYBBBBBBBBBBBBBBYBBBo","oBDBYBDBBBDBBBDBBBDYBBBo","oBBBYBBBBBBBBBBBBBBYBBBo","oBBBYBBBBBBBBBBBBBBYBBBo","oBBBYBBBBBBBBBBBBBBYBBBo","oDDDYDDDDDDDDDDDDDDYDDDo","oDDDYDDDDDDDDDDDDDDYDDDo",".oooooooooooooooooooooo."],"pal":{"o":"#2a1608","B":"#8a5a2e","L":"#a8743e","D":"#6a4220","K":"#3a2210","Y":"#f0c23a","G":"#fff4a3"}},
+    "Present": {"rows":[".......o......o.......","......oYo....oYo......",".....oYoYo..oYoYo.....",".....oYooYooYooYo.....",".ooooooYYYyyYYYoooooo.","opppppppppYypppppppppo","oPPPPPPPPPYyPPPPPPPPPo","oYYYYYYYYYYYYYYYYYYYYo","oPPPPPPPPPYyPPPPPPPPPo",".orrRRRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRSRRRo.",".orrRSRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRSRRRRo.",".orrRRRRRRYyRRRRRRRRo.",".orrRRRSRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRRRRRo.",".orrRRRRRRYyRRRRRRRRo.","..oooooooooooooooooo.."],"pal":{"o":"#2a0a0c","R":"#d8343a","r":"#b02428","P":"#e8484c","p":"#f06a6c","Y":"#f0c23a","y":"#c48f18","S":"#f6c8c8"}},
   };
-
-  // ---------- special shapes (drawn whole) ----------
-  const SPECIAL = {
-    "Pufferfish": {
-      rows: [
-        "....a.a.a....",
-        "...bbbbbbb...",
-        "a.bbbbbbbbb.a",
-        ".bbbbbbbbwebb",
-        "fbbbbbbbbbbbb",
-        "fflllllllllll",
-        ".llllllllllla",
-        "a.lllllllll..",
-        "...a.a.a.....",
-      ],
-      pal: { b: "#d9b44a", l: "#f3e2a2", f: "#b8902e", a: "#8a6a1e" },
-    },
-    "Lionfish": {
-      rows: [
-        "..a.a.a.a.....",
-        "..aaaaaaa.....",
-        "f...bbbbbb....",
-        "ff.babababb...",
-        "ffbabababbbebb",
-        "ffbabababbbbbb",
-        "ff.lalalallll.",
-        "f..aaaaaaaa...",
-        "..a.a.a.a.....",
-      ],
-      pal: { b: "#f0e6da", l: "#f8f1ea", f: "#c94f3d", a: "#c94f3d" },
-    },
-    "Catfish": {
-      rows: [
-        "......ff........",
-        "f...bbbbbbb.....",
-        "ff.bbbbbbbbbb...",
-        "ffbbbbbbbbbbebb.",
-        "ffbbbbbbbbbbbbbb",
-        "ff.lllllllllllkk",
-        "f...lllllllll.k.",
-        "......ff.....k..",
-      ],
-      pal: { b: "#6b6a55", l: "#a9a68a", f: "#4d4c3c", k: "#2a2a20" },
-    },
-    "Swordfish": {
-      rows: [
-        "f.......fff..........",
-        "ff...bbbbbbbbb.......",
-        ".ffbbbbbbbbbbbbe.....",
-        "..fbbbbbbbbbbbbbbkkkk",
-        ".fflllllllllllll.....",
-        "ff...lllllllll.......",
-        "f.......ff...........",
-      ],
-      pal: { b: "#3b5f86", l: "#b9cbe0", f: "#2b4563", k: "#8ea3b8" },
-    },
-    "Hammerhead Shark": {
-      rows: [
-        "f.........ff.........",
-        "ff.......fff.......b.",
-        ".ff...bbbbbbbbbb...e.",
-        "..fbbbbbbbbbbbbbbbbbb",
-        "..fbbbbbbbbbbbbbbbbbb",
-        ".fflllllllllllllll.e.",
-        "ff.....llllllll....b.",
-        "f.......ff.....ff....",
-      ],
-      pal: { b: "#7b8a94", l: "#d7dde0", f: "#5d6a72" },
-    },
-    "Giant Squid": {
-      rows: [
-        ".k.k.k...bbbbbbb...",
-        "k.k.k.kbbbbbbbbbbb.",
-        "kkkkkkkbbbbbbbbbbbb",
-        "kkkkkkkbbbwebbbbbbb",
-        "kkkkkkkbbbbbbbbbbb.",
-        "k.k.k.kllllllllll..",
-        ".k.k.k...llllll....",
-      ],
-      pal: { b: "#c0504d", l: "#e48a7c", k: "#9e3b3b" },
-    },
-    "Crystal Jellyfish": {
-      rows: [
-        "...bbbbbb...",
-        ".bbbbbbbbbb.",
-        "bbgbbbbbbgbb",
-        "bbbbbbbbbbbb",
-        "llllllllllll",
-        ".a..a..a..a.",
-        ".a.a..a.a..a",
-        "..a.a..a..a.",
-        ".a..a.a..a..",
-        "..a..a..a...",
-      ],
-      pal: { b: "#9fd8ea", l: "#c9ecf5", a: "#7fc3d9", g: "#ffffff" },
-      glow: true,
-    },
-    "Baby Kraken": {
-      rows: [
-        "....bbbbbb....",
-        "..bbbbbbbbbb..",
-        ".bbbbbbbbbbbb.",
-        ".bbwebbbbwebb.",
-        ".bbbbbbbbbbbb.",
-        "..bbbbbbbbbb..",
-        ".b.bb.bb.bb.b.",
-        "b..b..bb..b..b",
-        "b.b..b..b..b.b",
-        ".b..b....b..b.",
-      ],
-      pal: { b: "#7d4fb0", l: "#a77fd6" },
-    },
-    "The Pixel Whale": {
-      rows: [
-        "....................w.",
-        "...............w...w..",
-        "ff..........bbbbbbb...",
-        ".ff....bbbbbbbbbbbbbb.",
-        "..fbbbbbbbbbbbbbbbbbbb",
-        "..fbbbbbbbbbbbbbbbebbb",
-        ".fflllllllllllllllllll",
-        "ff....lllllllllllllll.",
-        ".........lll.lll......",
-      ],
-      pal: { b: "#3f5f9e", l: "#a9bfe6", f: "#2c4579", w: "#cfe8ff" },
-    },
-    "Abyssal Anglerfish": {
-      rows: [
-        "........ggg...",
-        "........gkk...",
-        "...........k..",
-        "....bbbbbbbk..",
-        "..bbbbbbbbbbb.",
-        "f.bbbbbbbbbebb",
-        "ffbbbbbbbbbbbb",
-        "ffbbbbbbbwkwkw",
-        "f.bbbbbbbbbbbb",
-        "..bbbbbbbbbbb.",
-        "....bbbbbbb...",
-      ],
-      pal: { b: "#3a3550", f: "#2a263b", k: "#5a5270", w: "#e8e6d8", g: "#fff4a3" },
-      glow: true,
-    },
-    "Ancient Coelacanth": {
-      rows: [
-        ".....f..ff.......",
-        "f...bbbbbbbbb....",
-        "ff.bababbabbbb...",
-        "fffbbbbabbbbbbeb.",
-        "ffbbabbbbbabbbbbb",
-        "ff.llllllllllll..",
-        "f...f.llllll.f...",
-        ".....f......f....",
-      ],
-      pal: { b: "#355a73", l: "#5b809a", f: "#284558", a: "#b7cad6" },
-    },
-  };
-
-  // ---------- species: shape, colours, pattern ----------
-  // pal: body, belly, fin, accent
-  const FISH = {
-    // Common
-    Minnow:        { t: "slim",    c: ["#8a9a7b", "#d6dcc6", "#6f7d61"] },
-    Sardine:       { t: "slim",    c: ["#5b7f9c", "#dfe7ee", "#47657d"], p: "line", a: "#2f4b62" },
-    Perch:         { t: "classic", c: ["#9bae4a", "#e9e1b0", "#e07b3c", "#3f4f22"], p: "bands" },
-    Carp:          { t: "classic", c: ["#b98a3e", "#e6cf9a", "#93692a", "#8a6220"], p: "scales" },
-    Trout:         { t: "classic", c: ["#7d8f6a", "#e5dbc7", "#5f6f50", "#2e3527"], p: "spots" },
-    Herring:       { t: "slim",    c: ["#6f8fa8", "#e6edf2", "#55728a"] },
-    Bluegill:      { t: "tall",    c: ["#4f7c8a", "#e0b25a", "#3b5f6a", "#2d4a54"], p: "bands" },
-    Roach:         { t: "classic", c: ["#a6b2b8", "#eef0f0", "#d0473b"] },
-    Mackerel:      { t: "slim",    c: ["#3f8a7a", "#e8eeec", "#2e6a5d", "#1c3e37"], p: "waves" },
-    Anchovy:       { t: "slim",    c: ["#7f9aa6", "#e4ebee", "#647d88", "#c6d4da"], p: "line" },
-    // Uncommon
-    Salmon:        { t: "classic", c: ["#7f93a0", "#f2a88a", "#5f707c", "#2b3640"], p: "spots" },
-    Pike:          { t: "pike",    c: ["#5e7a3e", "#dfe0b0", "#4a6030", "#c9d48a"], p: "spots" },
-    "Sea Bass":    { t: "classic", c: ["#6d7f8f", "#dde3e8", "#55636f", "#3b4650"], p: "line" },
-    "Rainbow Trout": { t: "classic", c: ["#7e9a73", "#efe3d3", "#5f7756", "#e0718a"], p: "rainbow" },
-    "Red Snapper": { t: "classic", c: ["#d2523f", "#f2b6a8", "#a83a2c"] },
-    Flounder:      { t: "flat",    c: ["#9c8461", "#9c8461", "#7d6a4d", "#5f4f38"], p: "spots" },
-    Zander:        { t: "pike",    c: ["#8b9a86", "#e8ecdf", "#6c7a68", "#4b5547"], p: "bands" },
-    // Rare
-    "Electric Eel": { t: "long",   c: ["#4b5a3a", "#d8c46a", "#39452c", "#fff27a"], p: "zap", glow: true },
-    "Golden Carp": { t: "classic", c: ["#e7b331", "#f7e08a", "#c48f18", "#b07e10"], p: "scales", glow: true },
-    "Bluefin Tuna": { t: "torpedo", c: ["#253f6e", "#c9d3df", "#1b2f55", "#e6c34a"], p: "finlets" },
-    Barracuda:     { t: "long",    c: ["#8a9aa4", "#e6eaec", "#6b7a83", "#3c474e"], p: "bars" },
-    Sturgeon:      { t: "pike",    c: ["#6f6a5e", "#c9c2ae", "#55513f", "#d8d0b8"], p: "plates" },
-    "Silver Arowana": { t: "pike", c: ["#c9d3da", "#eef2f4", "#9aa9b3", "#a7b6c0"], p: "scales", glow: true },
-    // Epic
-    "Great White Shark": { t: "shark", c: ["#6f7f8c", "#eef0f0", "#56636d", "#ffffff"] },
-    "Manta Ray":   { t: "ray",     c: ["#2f3a4a", "#2f3a4a", "#232c38", "#e9edf2"], p: "belly" },
-    "Giant Oarfish": { t: "long",  c: ["#cfd8de", "#eef2f4", "#d8473b", "#8fa1ad"], p: "oar" },
-    "Ocean Sunfish": { t: "disc",  c: ["#8796a3", "#d4dbe1", "#6a7883"] },
-    // Legendary
-    "Moonlight Koi": { t: "classic", c: ["#f4f1e8", "#ffffff", "#d8d2c2", "#e0563f"], p: "koi", glow: true },
-    "Ghost Carp":  { t: "classic", c: ["#bcd9e0", "#e4f2f5", "#9cc3cc", "#ffffff"], p: "scales", ghost: true, glow: true },
-  };
-
-  // ---------- junk, rods, bait, boxes ----------
-  const ITEMS = {
-    "Old Boot": {
-      rows: [
-        "...bbbbb....",
-        "...bkkkb....",
-        "...bbbbb....",
-        "...bkkkb....",
-        "...bbbbbbb..",
-        "..bbbbbbbbbb",
-        "..bbbbbbbbbb",
-        "..kkkkkkkkkk",
-      ],
-      pal: { b: "#6b4a2f", k: "#3a281a" },
-    },
-    "Tin Can": {
-      rows: ["..wwwwww..", "..bbbbbb..", "..baaaab..", "..baxxab..", "..baaaab..", "..bbbbbb..", "..wwwwww.."],
-      pal: { b: "#8e9aa3", w: "#c9d1d6", a: "#c0504d", x: "#f0e6da" },
-    },
-    "Soggy Sock": {
-      rows: ["...wwww.", "...bbbb.", "...baab.", "...bbbb.", "...bbbb.", ".bbbbbb.", "bbbbbbb.", "bbbbbk..", ".kkkk..."],
-      pal: { b: "#c9c4b4", w: "#e8e3d4", a: "#b54a4a", k: "#8e897b" },
-    },
-    "Clump of Seaweed": {
-      rows: ["..b...b..", "..bb.bb..", ".b.bbb.b.", ".bb.b.bb.", "..bbbbb..", ".b.bbb.b.", "bb..b..bb", ".bbbbbbb."],
-      pal: { b: "#3f8a4a" },
-    },
-    "Broken Fishing Rod": {
-      rows: ["..........kb", ".........kb.", "........kb..", ".......kb...", "......b.....", "....kb......", "...kb.......", "..kbx.......", ".kb.........", "kb.........."],
-      pal: { b: "#8a6a3e", k: "#5e4526", x: "#9aa5ad" },
-    },
-    "Rusty Anchor": {
-      rows: ["....bbb....", "....b.b....", "....bbb....", "..bbbbbbb..", ".....b.....", ".....b.....", "b....b....b", "bb...b...bb", ".bb..b..bb.", "..bbbbbbb.."],
-      pal: { b: "#8a5a3a" },
-    },
-    "Torn Net": {
-      rows: ["b.b.b.b.b", ".b.b.b.b.", "b.b...b.b", ".b.....b.", "b.b...b.b", ".b.b.b.b.", "b.b.b.b.b"],
-      pal: { b: "#b9a77a" },
-    },
-
-    // Rods: diagonal, handle bottom-left, line from the tip
-    "Twig Rod": {
-      rows: [
-        "..............w.",
-        ".............bw.",
-        "............b.w.",
-        "...........b..w.",
-        "..........bb..w.",
-        ".........b....w.",
-        "........b.....w.",
-        ".......bb....ww.",
-        "......b......wk.",
-        ".....b..........",
-        "....bb..........",
-        "...b............",
-        "..kk............",
-        ".kk.............",
-      ],
-      pal: { b: "#8a6a3e", k: "#5e4526", w: "#d8e2e6" },
-    },
-    "Bamboo Rod": {
-      rows: [
-        "..............w.",
-        ".............bw.",
-        "............b.w.",
-        "...........x..w.",
-        "..........b...w.",
-        ".........b....w.",
-        "........x.....w.",
-        ".......b.....ww.",
-        "......b......wk.",
-        ".....x..........",
-        "....b...........",
-        "...b............",
-        "..kk............",
-        ".kk.............",
-      ],
-      pal: { b: "#c9b36a", x: "#7d8a3e", k: "#6b5a2e", w: "#d8e2e6" },
-    },
-    "Steel Rod": {
-      rows: [
-        "..............w.",
-        ".............bw.",
-        "............b.w.",
-        "...........b..w.",
-        "..........b...w.",
-        ".........b....w.",
-        "........b.....w.",
-        ".......b.....ww.",
-        "......b......wk.",
-        ".....b..........",
-        "...xxx..........",
-        "...xkx..........",
-        "..kxxx..........",
-        ".kk.............",
-      ],
-      pal: { b: "#9aa9b3", x: "#6b7a84", k: "#2f3a40", w: "#d8e2e6" },
-    },
-    "Golden Rod": {
-      rows: [
-        "..............w.",
-        ".............bw.",
-        "............b.w.",
-        "...........b..w.",
-        "..........b...w.",
-        ".........b....w.",
-        "........b.....w.",
-        ".......b.....ww.",
-        "......b......wk.",
-        ".....b..........",
-        "...xxx..........",
-        "...xgx..........",
-        "..kxxx..........",
-        ".kk.............",
-      ],
-      pal: { b: "#f0c23a", x: "#c48f18", g: "#fff4a3", k: "#6b4a10", w: "#d8e2e6" },
-      glow: true,
-    },
-    "Kraken Rod": {
-      rows: [
-        "..............w.",
-        ".............bw.",
-        "............b.w.",
-        "...........b..w.",
-        "..........b...w.",
-        ".........b....w.",
-        "........b.....w.",
-        ".......b.....ww.",
-        "......b......wk.",
-        "..x..b..........",
-        ".x.xxx..........",
-        "...xgx.x........",
-        "..kxxx.x........",
-        ".kk..xx.........",
-      ],
-      pal: { b: "#9b6fd0", x: "#6a3fa0", g: "#d8b8ff", k: "#3a2060", w: "#d8e2e6" },
-      glow: true,
-    },
-    "Founder's Rod": {
-      rows: [
-        "............g.w.",
-        "...........ggbw.",
-        "............b.w.",
-        "...........b..w.",
-        "..........y...w.",
-        ".........b....w.",
-        "........b.....w.",
-        ".......y.....ww.",
-        "......b......wk.",
-        ".....b..........",
-        "...yyy..........",
-        "...ygy..........",
-        "..kyyy..........",
-        ".kk.............",
-      ],
-      pal: { b: "#5a3a22", y: "#f0c23a", g: "#fff4a3", k: "#2e1d10", w: "#d8e2e6" },
-      glow: true,
-    },
-    "Candy Cane Rod": {
-      rows: [
-        "..............w.",
-        ".............rw.",
-        "............b.w.",
-        "...........r..w.",
-        "..........b...w.",
-        ".........r....w.",
-        "........b.....w.",
-        ".......r.....ww.",
-        "......b......wk.",
-        ".....r..........",
-        "...ggg..........",
-        "...grg..........",
-        "..kggg..........",
-        ".kk.............",
-      ],
-      pal: { b: "#ffffff", r: "#d8343a", g: "#2f7a4f", k: "#7a1c20", w: "#d8e2e6" },
-    },
-
-    // Bait and boxes
-    Worm: {
-      rows: ["..........", "..bb......", ".b..b.....", ".b...b..bb", "......bb.b", "........b."],
-      pal: { b: "#d98a8a" },
-    },
-    "Glow Lure": {
-      rows: [".....w.....", ".....w.....", "....ggg....", "...gbbbg...", "..gbbebbg..", "...gbbbg...", "....bbb....", ".....k.....", "....k.k...."],
-      pal: { b: "#f0c23a", g: "#fff4a3", e: "#0b1b22", w: "#d8e2e6", k: "#9aa5ad" },
-      glow: true,
-    },
-    Chest: {
-      rows: [".bbbbbbbbbb.", "bkkkkkkkkkkb", "bbbbbyybbbbb", "kkkkkyykkkkk", "bbbbbbbbbbbb", "bbbbbbbbbbbb", "kkkkkkkkkkkk"],
-      pal: { b: "#8a5a2e", k: "#5e3a1a", y: "#f0c23a" },
-    },
-    Present: {
-      rows: ["...g..g...", "....gg....", "rrrrggrrrr", "rrrrggrrrr", "gggggggggg", "rrrrggrrrr", "rrrrggrrrr", "rrrrggrrrr"],
-      pal: { r: "#d8343a", g: "#f0c23a" },
-    },
-  };
-
-  // ---------- drawing ----------
-  // Shapes are designed at 1x, then doubled with Scale2x (smooth curves instead of stairs),
-  // then patterned, shaded (lit from above) and outlined at 2x for detail.
-  const RES = 2;
-  const EYE = "#0b1b22";
-  function hex(c) {
-    const n = parseInt(c.slice(1), 16);
-    return [n >> 16, (n >> 8) & 255, n & 255];
-  }
-  // amt < 0 darkens, > 0 lightens
-  function mixRGB([r, g, b], amt) {
-    const f = (v) => Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt);
-    return [f(r), f(g), f(b)];
-  }
-  const css = ([r, g, b]) => `rgb(${r},${g},${b})`;
-  const mix = (c, amt) => css(mixRGB(hex(c), amt));
-
-  // Scale2x / EPX on a grid of letters
-  function scale2x(g) {
-    const H = g.length;
-    const W = Math.max(...g.map((r) => r.length));
-    const at = (x, y) => (y < 0 || y >= H || x < 0 || x >= W ? "." : g[y][x] || ".");
-    const out = Array.from({ length: H * 2 }, () => Array(W * 2).fill("."));
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        const P = at(x, y), A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
-        let p1 = P, p2 = P, p3 = P, p4 = P;
-        if (C === A && C !== D && A !== B) p1 = A;
-        if (A === B && A !== C && B !== D) p2 = B;
-        if (D === C && D !== B && C !== A) p3 = C;
-        if (B === D && B !== A && D !== C) p4 = D;
-        // keep eyes and small details crisp
-        if ("ewg".includes(P)) p1 = p2 = p3 = p4 = P;
-        out[y * 2][x * 2] = p1;
-        out[y * 2][x * 2 + 1] = p2;
-        out[y * 2 + 1][x * 2] = p3;
-        out[y * 2 + 1][x * 2 + 1] = p4;
-      }
-    return out;
-  }
-
-  // Patterns at 2x resolution: finer spots, stripes and scales
-  function pattern(g, p, seed) {
-    if (!p) return;
-    const H = g.length;
-    const mid = Math.floor(H / 2);
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < g[y].length; x++) {
-        const ch = g[y][x];
-        if (ch !== "b" && ch !== "l") continue;
-        let A = false;
-        if (p === "bands") A = ch === "b" && x > 5 && x % 6 < 2;
-        else if (p === "bars") A = ch === "b" && x % 7 < 2;
-        else if (p === "spots") A = ((x * 7 + y * 13 + seed) % 11 === 0) || ((x * 5 + y * 3 + seed) % 17 === 0 && x % 2 === 0);
-        else if (p === "scales") A = ch === "b" && y > 2 && ((x + (Math.floor(y / 2) % 2) * 2) % 4 === 0) && y % 2 === 0;
-        else if (p === "line") A = ch === "b" && (y === mid - 1 || y === mid - 2) && x % 2 === 0;
-        else if (p === "rainbow") A = ch === "b" && (y === mid || y === mid - 1);
-        else if (p === "waves") A = ch === "b" && (x + Math.round(2 * Math.sin(y))) % 5 === 0;
-        else if (p === "koi") A = ch === "b" && (Math.floor((x + 1) / 5) + Math.floor(y / 4)) % 3 === 1;
-        else if (p === "zap") A = ch === "b" && (x % 9 === 3 || (x % 9 === 4 && y % 2 === 0));
-        else if (p === "plates") A = ch === "b" && y <= 3 && x % 4 === 0;
-        else if (p === "finlets") A = ch === "l" && x % 4 === 0 && y >= H - 7 && y <= H - 5;
-        else if (p === "oar") A = ch === "b" && (x * 3 + y * 2) % 13 === 0;
-        else if (p === "belly") A = ch === "b" && (y === mid || y === mid - 1) && x > 5 && x < 24;
-        if (A) g[y][x] = "a";
-      }
-  }
-
-  // Base shape letters + palette for a name
-  function build(name) {
-    if (FISH[name]) {
-      const s = FISH[name];
-      const [body, belly, fin, accent] = s.c;
-      return {
-        grid: T[s.t].map((r) => [...r]),
-        pal: { b: body, l: belly, f: fin, a: accent || fin, e: EYE, w: "#ffffff" },
-        p: s.p,
-        oar: s.p === "oar",
-        glow: s.glow,
-        ghost: s.ghost,
-      };
-    }
-    const s = SPECIAL[name] || ITEMS[name];
-    if (!s) return null;
-    return { grid: s.rows.map((r) => [...r]), pal: { e: EYE, w: "#ffffff", ...s.pal }, glow: s.glow, ghost: s.ghost };
-  }
-
-  const cache = new Map();
-  // Colour grid at 2x, with shading and outline. null = transparent.
-  function render(name, silhouette) {
-    const key = name + (silhouette ? "|s" : "");
-    if (cache.has(key)) return cache.get(key);
-    const s = build(name);
-    if (!s) return null;
-    if (s.oar) s.grid[0] = s.grid[0].map((ch) => (ch === "b" ? "f" : ch)); // the Oarfish's red crest
-    let g = scale2x(s.grid);
-    let seed = 0;
-    for (const ch of name) seed = (seed * 31 + ch.charCodeAt(0)) % 97;
-    pattern(g, s.p, seed);
-    // eyes: a white shine in the top-left pixel of each eye
-    for (let y = 0; y < g.length - 1; y++)
-      for (let x = 0; x < g[y].length - 1; x++)
-        if (g[y][x] === "e" && g[y][x + 1] === "e" && g[y + 1][x] === "e" && (y === 0 || g[y - 1][x] !== "e") && (x === 0 || g[y][x - 1] !== "e"))
-          g[y][x] = "w";
-
-    // pad by 1 for the outline
-    const H = g.length + 2;
-    const W = Math.max(...g.map((r) => r.length)) + 2;
-    const L = (x, y) => (y >= 1 && y <= g.length && x >= 1 ? g[y - 1][x - 1] || "." : ".");
-    const filled = (x, y) => L(x, y) !== ".";
-    // column extents, for the top-to-bottom light
-    const top = Array(W).fill(H), bot = Array(W).fill(-1);
-    for (let x = 0; x < W; x++)
-      for (let y = 0; y < H; y++)
-        if (filled(x, y)) {
-          top[x] = Math.min(top[x], y);
-          bot[x] = Math.max(bot[x], y);
-        }
-
-    const px = Array.from({ length: H }, () => Array(W).fill(null));
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        const ch = L(x, y);
-        if (ch === ".") continue;
-        if (silhouette) {
-          px[y][x] = [24, 52, 63];
-          continue;
-        }
-        const base = s.pal[ch] || s.pal.b || "#888888";
-        let c = hex(base);
-        if (ch === "e" || ch === "w" || ch === "g") {
-          px[y][x] = c;
-          continue;
-        }
-        // light from above: brighter at the top of the shape, darker at the bottom
-        const span = Math.max(1, bot[x] - top[x]);
-        const t = (y - top[x]) / span;
-        c = mixRGB(c, 0.16 - t * 0.34);
-        // a bright rim where the top edge meets the water
-        if (!filled(x, y - 1)) c = mixRGB(c, 0.28);
-        else if (!filled(x, y - 2)) c = mixRGB(c, 0.1);
-        // fins get rays
-        if (ch === "f" && y % 2 === 0) c = mixRGB(c, -0.12);
-        // soft edge between body and belly
-        if (ch === "l" && L(x, y - 1) === "b") c = mixRGB(c, -0.1);
-        px[y][x] = c;
-      }
-    // selective outline: a darker version of the colour it touches, darkest underneath
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        if (px[y][x]) continue;
-        const n = [[x, y - 1, -0.7], [x - 1, y, -0.62], [x + 1, y, -0.62], [x, y + 1, -0.5]];
-        let best = null;
-        for (const [nx, ny, amt] of n) {
-          if (ny < 0 || ny >= H || nx < 0 || nx >= W || !filled(nx, ny)) continue;
-          const src = silhouette ? [24, 52, 63] : hex(s.pal[L(nx, ny)] || s.pal.b || "#888888");
-          const col = silhouette ? [10, 28, 36] : mixRGB(src, amt);
-          if (!best || col[0] + col[1] + col[2] < best[0] + best[1] + best[2]) best = col;
-        }
-        if (best) px[y][x] = best;
-      }
-    const out = { px, W, H, glow: s.glow, ghost: s.ghost };
-    cache.set(key, out);
-    return out;
-  }
-
+  const SIL = "rgb(24,52,63)", SIL_EDGE = "rgb(10,28,36)";
   function toSVG(name, { silhouette = false, title = "" } = {}) {
-    const r = render(name, silhouette);
-    if (!r) return "";
+    const s = ART[name];
+    if (!s) return "";
+    const H = s.rows.length, W = s.rows[0].length;
     let rects = "";
-    // merge runs of the same colour in a row: fewer elements, same picture
-    r.px.forEach((row, y) => {
-      for (let x = 0; x < r.W; ) {
-        const c = row[x];
-        if (!c) {
-          x++;
-          continue;
-        }
+    // merge runs of the same letter in a row: fewer elements, same picture
+    s.rows.forEach((row, y) => {
+      for (let x = 0; x < W; ) {
+        const ch = row[x];
+        if (ch === "." || ch === undefined) { x++; continue; }
         let n = 1;
-        while (x + n < r.W && row[x + n] && row[x + n].join() === c.join()) n++;
-        rects += `<rect x="${x}" y="${y}" width="${n + 0.02}" height="1.02" fill="${css(c)}"/>`;
+        const same = (c) => silhouette ? c !== "." && c !== undefined && (c === "o") === (ch === "o") : c === ch;
+        while (x + n < W && same(row[x + n])) n++;
+        const fill = silhouette ? (ch === "o" ? SIL_EDGE : SIL) : s.pal[ch] || "#888";
+        rects += `<rect x="${x}" y="${y}" width="${n + 0.02}" height="1.02" fill="${fill}"/>`;
         x += n;
       }
     });
-    const cls = ["px", r.glow && !silhouette ? "glow" : "", r.ghost && !silhouette ? "ghost" : ""].filter(Boolean).join(" ");
+    const cls = ["px", s.glow && !silhouette ? "glow" : "", s.ghost && !silhouette ? "ghost" : ""].filter(Boolean).join(" ");
     const label = title ? `role="img" aria-label="${title.replace(/"/g, "&quot;")}"` : 'aria-hidden="true"';
-    return `<svg class="${cls}" viewBox="0 0 ${r.W} ${r.H}" width="${r.W}" height="${r.H}" shape-rendering="crispEdges" ${label}>${rects}</svg>`;
+    return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" shape-rendering="crispEdges" ${label}>${rects}</svg>`;
   }
-
-  const names = [...Object.keys(FISH), ...Object.keys(SPECIAL), ...Object.keys(ITEMS)];
-  // Size in sprite pixels (with the outline). res says how many sprite pixels make one
-  // design pixel, so pages can keep the same on-screen sizes.
-  function size(name) {
-    const r = render(name, false);
-    return r ? { w: r.W, h: r.H } : null;
-  }
-  window.SPRITES = { svg: toSVG, size, res: RES, has: (n) => !!build(n), names };
+  const size = (name) => (ART[name] ? { w: ART[name].rows[0].length, h: ART[name].rows.length } : null);
+  // res: sprite pixels per "design pixel", so pages keep roughly the same on-screen sizes
+  window.SPRITES = { svg: toSVG, size, res: 2, has: (n) => !!ART[n], names: Object.keys(ART) };
 })();
