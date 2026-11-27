@@ -387,3 +387,129 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
   .post .price { grid-column: 2; text-align: left; }
   .post .how { grid-column: 2; }
 }
+
+/* =====================================================================
+   Readability pass: the pixel font is for the logo and headings only;
+   everything people read is in Atkinson Hyperlegible, larger and brighter.
+   ===================================================================== */
+:root {
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --pixel: var(--body);              /* every old "pixel" label now uses the reading font */
+  --mist: #c4dcdd;                   /* quiet text, brighter for contrast */
+}
+body { font-size: 1.125rem; line-height: 1.6; }
+.logo, h1, h2 { font-family: var(--display); font-weight: 600; letter-spacing: .01em; }
+h1 { font-size: clamp(2.1rem, 5vw, 3rem); }
+h2 { font-size: 1.75rem; margin: 3rem 0 1rem; }
+h2 small { font: 400 1rem var(--body); color: var(--mist); margin-left: .4rem; }
+h3 { font-family: var(--body); font-weight: 700; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.lead { max-width: 62ch; color: var(--mist); }
+.quiet, .tank-hint, .hint-line { color: var(--mist); font-size: 1rem; }
+code { font: 700 .95em var(--body); background: rgba(10, 32, 41, .6); color: var(--legendary); padding: .15rem .5rem; border-radius: 5px; white-space: nowrap; }
+.surface code { background: rgba(15, 59, 64, .12); color: var(--shallow-ink); }
+
+/* header: less in the way */
+.surface { padding: 2rem 0 3.25rem; }
+.tagline { margin: .4rem 0 1rem; }
+.nav { margin: 0 0 1.25rem; gap: .4rem 1.6rem; }
+.nav a { font-weight: 700; font-size: 1.05rem; }
+.search { max-width: 26rem; }
+.search .suggest { top: 3.4rem; }
+.search button, .btn { font-weight: 700; }
+.live { margin-top: 1.25rem; }
+.live strong { font-size: 1.1rem; }
+
+/* banners (launch weekend, advent) */
+.banner {
+  display: grid; grid-template-columns: auto 1fr; gap: 1.25rem 1.75rem; align-items: center;
+  margin: 1.5rem 0 0; padding: 1.25rem 1.5rem; border-radius: 12px;
+  background: #0f3340; border: 2px solid var(--legendary);
+}
+.banner h2 { margin: 0 0 .4rem; font-size: 1.6rem; color: var(--legendary); }
+.banner p { margin: .35rem 0; max-width: 60ch; }
+.banner .facts { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; color: var(--mist); }
+.banner .facts b { color: var(--foam); }
+.banner-art { display: grid; place-items: center; }
+.xmas-banner { border-color: #c8463d; }
+.xmas-banner h2 { color: #f08a80; }
+@media (max-width: 600px) { .banner { grid-template-columns: 1fr; } .banner-art { justify-items: start; } }
+
+/* start fishing */
+.start h2 { margin-top: 2.25rem; }
+.start p { margin: .4rem 0; max-width: 60ch; }
+.big-cmd code { font-size: 1.35rem; padding: .45rem .9rem; display: inline-block; margin: .35rem 0; }
+.pond-stats { color: var(--mist); margin: 1.5rem 0 0; font-size: 1rem; }
+
+/* leaderboard */
+.board { max-width: 36rem; }
+.board li { padding: .65rem .25rem; }
+.board .pos, .board .pts { font-weight: 700; font-size: 1.15rem; }
+.tabs button { font: 700 .95rem var(--body); padding: .35rem .9rem; }
+
+/* list rows with a sprite icon: big catches, recent catches, past winners */
+.rows { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
+.rows li { display: flex; align-items: center; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid rgba(196, 220, 221, .14); }
+.rows li:last-child { border-bottom: 0; }
+.rows a { font-weight: 700; }
+.ico { flex: none; display: grid; place-items: center; min-height: 40px; }
+.ico svg { display: block; }
+.rar { font-weight: 700; font-size: .95rem; }
+.sub { display: block; color: var(--mist); font-size: 1rem; }
+.reigning { color: var(--mist); }
+details.more { margin-top: 1.25rem; max-width: 40rem; }
+details.more summary { cursor: pointer; color: var(--mist); font-weight: 700; padding: .4rem 0; }
+details.more summary:hover { color: var(--foam); }
+
+/* profile */
+.title-line { font-family: var(--body); font-weight: 700; color: var(--legendary); font-size: 1.1rem; margin: 0 0 1.5rem; }
+.keystats { display: flex; flex-wrap: wrap; gap: 1rem 2.75rem; margin: 0; }
+.keystats dt { color: var(--mist); font-size: .95rem; }
+.keystats dd { margin: 0; font-size: 1.9rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.keystats dd small { font-size: 1rem; font-weight: 400; color: var(--mist); }
+.keystats .rod dd { display: flex; align-items: center; gap: .5rem; font-size: 1.25rem; }
+.substats { color: var(--mist); margin: .9rem 0 0; max-width: 62ch; }
+.limited { gap: 1rem; margin-top: .25rem; }
+.limited li { display: flex; align-items: center; gap: .9rem; padding: .75rem 1.1rem; box-shadow: none; border-width: 2px; }
+.limited b { font: 700 1.1rem var(--body); }
+.limited small { font-size: .95rem; }
+.serial { font-family: var(--body); font-weight: 700; }
+
+/* collection: fish tiles */
+.rar-h { color: var(--c); }
+.rar-h.small { font-size: 1.05rem; margin: 1.5rem 0 .5rem; }
+.tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: .5rem; }
+.tiles li { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .6rem .3rem; border-radius: 8px; background: rgba(10, 32, 41, .45); text-align: center; }
+.tiles li span { font-size: .9rem; line-height: 1.25; }
+.tiles li.unknown span { color: #6f9299; }
+
+/* achievements: earned in a clean grid, the rest folded away */
+.achs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .6rem; }
+.achs li { padding: .7rem .9rem; border-radius: 8px; background: rgba(243, 182, 58, .12); border: 0; }
+.achs li b { display: block; font-family: var(--body); color: var(--legendary); }
+.achs.locked li { background: rgba(10, 32, 41, .45); }
+.achs.locked li b { color: var(--foam); }
+
+/* Fishdex cards */
+.rar-h:not(.small) { margin: 2.25rem 0 .9rem; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .9rem; }
+.card { display: flex; flex-direction: column; gap: .15rem; padding: 1rem; border-radius: 10px; background: rgba(10, 32, 41, .5); }
+.card-art { height: 96px; display: grid; place-items: center; margin-bottom: .4rem; }
+.card b { font-size: 1.1rem; }
+.card .sub { font-size: .95rem; }
+.card.unknown b { color: #6f9299; }
+
+/* aquarium: pixel sprites */
+.tank .fish svg { image-rendering: pixelated; }
+.tank .fish .glow, .tank .fish.legendary { filter: drop-shadow(0 0 5px rgba(255, 236, 150, .7)); }
+.px.ghost { opacity: .78; }
+.px.glow { filter: drop-shadow(0 0 3px rgba(255, 236, 150, .55)); }
+.tank .junkpile { display: flex; align-items: flex-end; gap: 4px; }
+.tank .junkpile svg { display: block; }
+.tank .chest { flex-direction: column; align-items: center; gap: 2px; font: 700 .95rem var(--body); }
+.tank-hint { margin: .5rem 0 0; }
+.legend { display: none; }
+
+/* trading post rows with art */
+.post .what { display: flex; align-items: center; gap: .75rem; }
+.post .what b { font-family: var(--body); }

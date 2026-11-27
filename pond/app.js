@@ -134,6 +134,13 @@
     listings: () =>
       DEMO ? demo.listings() : api("listings?status=in.(open,reserved)&select=*&order=est_value.asc.nullslast,id.asc&limit=50").catch(() => []),
     sales: () => (DEMO ? demo.sales() : api("sales?select=*&order=id.desc&limit=15").catch(() => [])),
+    launchCounts: () =>
+      DEMO
+        ? Promise.resolve({ founders: 14, dayOne: 86 })
+        : Promise.all([
+            api(`limited_items?select=id&kind=eq.${GAME.launch.kind}`, { count: true }).catch(() => 0),
+            api("achievements?select=player&key=eq.day_one", { count: true }).catch(() => 0),
+          ]).then(([founders, dayOne]) => ({ founders, dayOne })),
     adventOpened: (year, day) =>
       DEMO ? Promise.resolve(9) : api(`advent?select=player&year=eq.${year}&day=eq.${day}`, { count: true }).catch(() => null),
     search: (q) =>
@@ -197,6 +204,20 @@
     return `<svg viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
   }
   const SIZE = { Common: 42, Uncommon: 54, Rare: 68, Epic: 88, Legendary: 108 };
+  // Pixel art from sprites.js. `w` is the width in CSS pixels (height follows).
+  const SCALE = { Junk: 2.6, Common: 3, Uncommon: 3.4, Rare: 3.8, Epic: 4.4, Legendary: 5 };
+  function art(name, w, opts = {}) {
+    if (!window.SPRITES || !SPRITES.has(name)) return "";
+    const z = SPRITES.size(name);
+    return SPRITES.svg(name, opts).replace("<svg ", `<svg style="width:${w}px;height:${Math.round((w * z.h) / z.w)}px" `);
+  }
+  // Fixed-size box for list icons, so rows line up whatever the sprite's shape
+  const icon = (name, box = 56, opts) => {
+    if (!window.SPRITES || !SPRITES.has(name)) return `<span class="ico" style="width:${box}px"></span>`;
+    const z = SPRITES.size(name);
+    const w = Math.min(box, Math.round((box * 0.62 * z.w) / z.h));
+    return `<span class="ico" style="width:${box}px">${art(name, w, opts)}</span>`;
+  };
 
   // ---------- live event strip ----------
   async function renderLive() {
@@ -275,66 +296,90 @@
 
   async function loadHome() {
     const door = adventDoor();
-    const [board, recent, history, live, stats, doorCount] = await Promise.all([
+    const launchOn = GAME.launch && Date.now() < GAME.launch.until && !XMAS_TEST;
+    const [board, recent, history, live, stats, doorCount, launch] = await Promise.all([
       loadBoard(boardTab),
       data.recent(),
       data.history(),
       data.live().catch(() => null),
       data.stats().catch(() => null),
       door ? data.adventOpened(today().y, door) : Promise.resolve(null),
+      launchOn ? data.launchCounts() : Promise.resolve(null),
     ]);
-    return { board, recent, history, champion: live && live.champion, stats, tab: boardTab, door, doorCount };
+    return { board, recent, history, champion: live && live.champion, stats, tab: boardTab, door, doorCount, launch };
+  }
+
+  function timeLeft(until) {
+    const mins = Math.max(0, Math.floor((until - Date.now()) / 60000));
+    const d = Math.floor(mins / 1440);
+    const h = Math.floor((mins % 1440) / 60);
+    return d ? `${d} day${d === 1 ? "" : "s"} ${h}h` : h ? `${h}h ${mins % 60}m` : `${mins} minutes`;
   }
 
   function drawHome(d) {
     document.title = "Flatfish's Pond: FlatMMO fishing";
     const champ = d.champion;
-    const big = d.recent.length
-      ? `<ul class="achs">${d.recent
-          .map(
-            (c) => `<li style="border-left-color:${color(c.rarity)}"><b>${esc(c.fish)}</b>
-              <small>${kg(c.weight)} ${c.rarity} caught by <a href="${profileLink(c.player)}">${esc(c.player)}</a>${c.caught_at ? `, ${caughtAgo(c.caught_at)}` : ""}</small></li>`
-          )
-          .join("")}</ul>`
-      : `<p class="empty">No Epic or Legendary catches yet.</p>`;
-    const hall = d.history.length
-      ? `<h2>Hall of Champions</h2>
-        ${champ ? `<p class="reigning">👑 <a href="${profileLink(champ.name)}">${esc(champ.display)}</a> holds the crown, won with a ${num(champ.points)}pt ${esc(champ.fish)}.</p>` : ""}
-        <ol class="hall">${d.history
-          .map(
-            (h) => `<li><a href="${profileLink(h.winner)}">${esc(h.display)}</a>
-              <span>${esc(h.fish)}, ${kg(h.weight)} (${num(h.points)}pts) against ${h.entrants - 1} ${h.entrants === 2 ? "rival" : "rivals"}</span>
-              <time datetime="${new Date(h.ended_at).toISOString()}">${new Date(h.ended_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</time></li>`
-          )
-          .join("")}</ol>`
-      : "";
     const bot = esc(CFG.BOT_NAME || "flatfish");
-    const pondStats = d.stats
-      ? `<p class="pond-stats"><b>${num(d.stats.fish)}</b> fish caught by <b>${num(d.stats.anglers)}</b> ${d.stats.anglers === 1 ? "angler" : "anglers"}, <b>${num(d.stats.legendary)}</b> of them Legendary.</p>`
+
+    const launch = d.launch
+      ? `<section class="banner launch" aria-labelledby="launch-h">
+          <div class="banner-art">${art(GAME.launch.name, 120)}</div>
+          <div>
+            <h2 id="launch-h">Launch weekend</h2>
+            <p>The <b>${esc(GAME.launch.name)}</b> is in the shop for ${num(GAME.launch.price)} coins until 30 November, then never again. It gives a 10% chance of a second fish on every cast.</p>
+            <p class="facts"><span><b>${num(d.launch.founders)}</b> sold</span><span><b>${num(d.launch.dayOne)}</b> anglers have earned the Day One title</span><span>Ends in <b>${timeLeft(GAME.launch.until)}</b></span></p>
+            <p><code>/pm ${bot} shop</code></p>
+          </div>
+        </section>`
       : "";
-    const newHere = `
-      <section class="new-here" aria-labelledby="new-here">
-        <h2 id="new-here">New here?</h2>
-        <p>Everything happens in FlatMMO chat. Send ${bot} a private message, or type next to it:</p>
-        <dl class="howto">
-          <div><dt><code>/pm ${bot} -fish</code></dt><dd>Cast a line, once a minute. Every catch swims into your aquarium here.</dd></div>
-          <div><dt><code>/pm ${bot} -daily</code></dt><dd>Free points and coins every day. Keep a streak going for a bigger bonus.</dd></div>
-          <div><dt><code>/pm ${bot} -shop</code></dt><dd>Better rods and bait mean fewer old boots and more rare fish.</dd></div>
-          <div><dt><code>/pm ${bot} -help</code></dt><dd>Every command, plus boss fights, contests and titles.</dd></div>
-        </dl>
+    const advent = d.door
+      ? `<section class="banner xmas-banner" aria-labelledby="advent-h">
+          <div class="banner-art">${art("Present", 84)}</div>
+          <div>
+            <h2 id="advent-h">Advent calendar: door ${d.door}</h2>
+            <p>A gift every day until Christmas Eve. Open ${GAME.advent.titleDoors} doors for the Candy Cane Rod.${d.doorCount ? ` ${num(d.doorCount)} ${d.doorCount === 1 ? "angler has" : "anglers have"} opened today's door.` : ""}</p>
+            <p><code>/pm ${bot} advent</code></p>
+          </div>
+        </section>`
+      : "";
+    const start = `
+      <section class="start" aria-labelledby="start-h">
+        <h2 id="start-h">Start fishing</h2>
+        <p>Flatfish lives in FlatMMO chat. Send it a message to cast your line:</p>
+        <p class="big-cmd"><code>/pm ${bot} fish</code></p>
+        <p class="quiet">Then try <code>shop</code>, <code>daily</code> and <code>help</code> the same way.</p>
       </section>`;
+    const pondStats = d.stats
+      ? `<p class="pond-stats">${num(d.stats.fish)} fish caught by ${num(d.stats.anglers)} ${d.stats.anglers === 1 ? "angler" : "anglers"} so far, ${num(d.stats.legendary)} of them Legendary.</p>`
+      : "";
     const tabs = `<div class="tabs" role="tablist" aria-label="Leaderboards">${BOARDS.map(
       (b) => `<button role="tab" type="button" data-tab="${b.key}" aria-selected="${b.key === d.tab}">${b.label}</button>`
     ).join("")}</div>`;
-    const adventBanner = d.door
-      ? `<section class="advent-banner" aria-label="Advent calendar">
-          <p class="big">Door ${d.door}${d.door === 24 ? ": Christmas Eve" : ""}</p>
-          <p>The advent calendar is open, 1 to 24 December. A gift a day, and the Candy Cane Rod for anyone who opens ${GAME.advent.titleDoors}.
-          ${d.doorCount ? `${num(d.doorCount)} ${d.doorCount === 1 ? "angler has" : "anglers have"} opened today's door.` : ""}</p>
-          <p><code>/pm ${bot} advent</code></p>
-        </section>`
+    const reigning = champ
+      ? `<p class="reigning">👑 Contest champion: <a href="${profileLink(champ.name)}">${esc(champ.display)}</a></p>`
       : "";
-    view.innerHTML = `${adventBanner}${pondStats}${newHere}<h2>Top anglers</h2>${tabs}<div id="board">${boardHTML(d.board, d.tab, champ)}</div>${hall}<h2>Latest big catches</h2>${big}`;
+    const big = d.recent.length
+      ? `<ul class="rows">${d.recent
+          .slice(0, 6)
+          .map(
+            (c) => `<li>${icon(c.fish)}<div><b>${esc(c.fish)}</b> <span class="rar" style="color:var(${RARITY_VAR[c.rarity]})">${c.rarity}</span>
+              <span class="sub">${kg(c.weight)}, caught by <a href="${profileLink(c.player)}">${esc(c.player)}</a>${c.caught_at ? ` ${caughtAgo(c.caught_at)}` : ""}</span></div></li>`
+          )
+          .join("")}</ul>`
+      : `<p class="empty">No Epic or Legendary catches yet. Could be you.</p>`;
+    const hall = d.history.length
+      ? `<details class="more"><summary>Past contest winners</summary>
+        <ul class="rows">${d.history
+          .map(
+            (h) => `<li>${icon(h.fish, 48)}<div><a href="${profileLink(h.winner)}"><b>${esc(h.display)}</b></a>
+              <span class="sub">won with a ${kg(h.weight)} ${esc(h.fish)} against ${h.entrants - 1} ${h.entrants === 2 ? "rival" : "rivals"}, ${new Date(h.ended_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span></div></li>`
+          )
+          .join("")}</ul></details>`
+      : "";
+
+    view.innerHTML = `${launch}${advent}${start}${pondStats}
+      <h2>Top anglers</h2>${reigning}${tabs}<div id="board">${boardHTML(d.board, d.tab, champ)}</div>
+      <h2>Latest big catches</h2>${big}${hall}`;
     view.querySelectorAll(".tabs button").forEach((btn) =>
       btn.addEventListener("click", async () => {
         if (btn.dataset.tab === boardTab) return;
@@ -350,6 +395,7 @@
       })
     );
   }
+
 
   // ---------- world records ----------
   async function loadRecords() {
@@ -368,31 +414,39 @@
     };
   }
 
+  // Big and crisp: whole sprite pixels, at most 160 wide and 84 tall
+  function dexW(f) {
+    const z = SPRITES.size(f);
+    const k = Math.max(2, Math.min(6, Math.floor(Math.min(160 / z.w, 84 / z.h))));
+    return z.w * k;
+  }
   function drawRecords(d) {
-    document.title = "World records: Flatfish's Pond";
+    document.title = "Fishdex: Flatfish's Pond";
     const total = Object.values(GAME.fish).flat().length;
     const found = Object.keys(d.records).length;
     const groups = GAME.rarities
       .map((r) => {
-        const rows = GAME.fish[r]
+        const cards = GAME.fish[r]
           .map((f) => {
             const rec = d.records[f];
             return rec
-              ? `<li><span class="rn">${esc(f)}</span><span class="rk">${kg(rec.weight)}</span>
-                  <span class="rh"><a href="${profileLink(rec.player)}">${esc(rec.display)}</a></span>
-                  <span class="ra">${rec.anglers} ${rec.anglers === 1 ? "angler has" : "anglers have"} caught one</span></li>`
-              : `<li class="missing"><span class="rn">???</span><span class="rk">-</span><span class="rh">nobody yet</span><span class="ra">be the first!</span></li>`;
+              ? `<li class="card"><div class="card-art">${art(f, dexW(f))}</div>
+                  <b>${esc(f)}</b>
+                  <span class="sub">Record ${kg(rec.weight)} by <a href="${profileLink(rec.player)}">${esc(rec.display)}</a></span>
+                  <span class="sub">Found by ${rec.anglers} ${rec.anglers === 1 ? "angler" : "anglers"}</span></li>`
+              : `<li class="card unknown"><div class="card-art">${art(f, dexW(f), { silhouette: true })}</div>
+                  <b>???</b><span class="sub">Nobody has caught one yet</span></li>`;
           })
           .join("");
-        return `<h3 style="--c:var(${RARITY_VAR[r]})">${r}</h3><ol class="records">${rows}</ol>`;
+        return `<h2 class="rar-h" style="--c:var(${RARITY_VAR[r]})">${r}</h2><ul class="cards">${cards}</ul>`;
       })
       .join("");
     view.innerHTML = `
-      <a class="back" href="#/">Back to the leaderboard</a>
-      <h1>World records</h1>
-      <p class="lede">The heaviest catch of every species, and who holds it. ${found} of ${total} species found so far.</p>
-      <div class="records-wrap">${groups}</div>`;
+      <h1>Fishdex</h1>
+      <p class="lead">Every fish in the pond, with the heaviest catch and who holds the record. ${found} of ${total} found so far: dark ones are still waiting for someone to catch them.</p>
+      ${groups}`;
   }
+
 
   // ---------- player profile ----------
   async function loadPlayer(name) {
@@ -424,43 +478,39 @@
     const have = new Set(achRows.map((a) => a.key));
     const isMe = getMe() === p.name;
     const candy = have.has("festive_angler"); // earned through the advent calendar
-    const holdsCane = (d.owned || []).some((it) => it.kind === "candy_cane_rod"); // the perk follows the item
-    const holdsFounder = (d.owned || []).some((it) => it.kind === "founders_rod");
-    const rod = `${holdsFounder ? "Founder's " : ""}${holdsCane ? "Candy Cane " : ""}${GAME.rods[p.rod] || "Twig Rod"}`;
+    const owned = d.owned || [];
+    const holdsCane = owned.some((it) => it.kind === "candy_cane_rod"); // the perk follows the item
+    const holdsFounder = owned.some((it) => it.kind === "founders_rod");
+    const baseRod = GAME.rods[p.rod] || "Twig Rod";
+    const rod = `${holdsFounder ? "Founder's " : ""}${holdsCane ? "Candy Cane " : ""}${baseRod}`;
+    const titles = [p.title ? `the ${esc(p.title)}` : "", isChamp ? "👑 contest champion" : ""].filter(Boolean).join(", ");
 
-    const stats = [
-      ["Points", num(p.points)],
-      ["Rank", `#${num(rank)}`],
-      ["Coins", num(p.coins)],
-      ["Rod", rod],
-      ["Casts", num(p.casts)],
-      ["Species", `${caught.size}/${species}`],
-      ["Bosses beaten", num(p.boss_kills)],
-      ["Contest trophies", num(p.contest_wins)],
-      ["Daily streak", num(p.streak)],
-    ];
+    const key = `
+      <dl class="keystats">
+        <div><dt>Points</dt><dd>${num(p.points)}</dd></div>
+        <div><dt>Rank</dt><dd>#${num(rank)}</dd></div>
+        <div><dt>Species</dt><dd>${caught.size}<small> of ${species}</small></dd></div>
+        <div class="rod"><dt>Rod</dt><dd>${art(baseRod, 34)}<span>${esc(rod)}</span></dd></div>
+      </dl>
+      <p class="substats">${num(p.coins)} coins, ${num(p.casts)} casts, ${num(p.streak)}-day daily streak, ${num(p.boss_kills)} ${p.boss_kills === 1 ? "boss" : "bosses"} beaten, ${num(p.contest_wins)} contest ${p.contest_wins === 1 ? "win" : "wins"}.</p>`;
 
-    const list = GAME.rarities
+    const collection = GAME.rarities
       .map((r) => {
-        const rows = GAME.fish[r]
+        const tiles = GAME.fish[r]
           .map((f) => {
             const c = caught.get(f);
             return c
-              ? `<div class="sp"><span class="n">${esc(f)}</span><span class="w">${kg(c.best_weight)} (×${c.caught})</span></div>`
-              : `<div class="sp missing"><span class="n">???</span><span class="w">not found yet</span></div>`;
+              ? `<li title="${esc(f)}: best ${kg(c.best_weight)}, caught ${c.caught}×">${icon(f, 64)}<span>${esc(f)}</span></li>`
+              : `<li class="unknown" title="Not found yet">${icon(f, 64, { silhouette: true })}<span>?</span></li>`;
           })
           .join("");
-        return `<h3 style="--c:var(${RARITY_VAR[r]})">${r}</h3>${rows}`;
+        return `<h3 class="rar-h small" style="--c:var(${RARITY_VAR[r]})">${r}</h3><ul class="tiles">${tiles}</ul>`;
       })
       .join("");
 
-    const achs = GAME.achievements
-      .map((a) =>
-        have.has(a.key)
-          ? `<li><b>${esc(a.title)}</b><small>${esc(a.desc)}</small></li>`
-          : `<li class="locked"><b>${esc(a.title)}</b><small>${esc(a.desc)}</small></li>`
-      )
-      .join("");
+    const earned = GAME.achievements.filter((a) => have.has(a.key));
+    const locked = GAME.achievements.filter((a) => !have.has(a.key));
+    const achList = (list) => list.map((a) => `<li><b>${esc(a.title)}</b><span class="sub">${esc(a.desc)}</span></li>`).join("");
 
     view.innerHTML = `
       <a class="back" href="#/">Back to the leaderboard</a>
@@ -468,25 +518,26 @@
         <h1>${esc(p.display)}</h1>
         <button type="button" class="me-btn" id="me-btn" aria-pressed="${isMe}">${isMe ? "This is you" : "This is me"}</button>
       </div>
-      <p class="title-line">${p.title ? `the ${esc(p.title)}` : ""}${isChamp ? `${p.title ? ", " : ""}👑 Reigning contest champion` : ""}</p>
-      <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
-      ${itemsHTML(d.owned || [], p.name)}
+      ${titles ? `<p class="title-line">${titles}</p>` : ""}
+      ${key}
+      ${itemsHTML(owned, p.name)}
       ${d.advent ? calendarHTML(d.advent, candy) : ""}
       <h2>Aquarium</h2>
       <div class="tank" id="tank" role="img" aria-label="${esc(p.display)}'s aquarium with ${caught.size} species"></div>
-      <p class="legend">${RARITY_ORDER.map((r) => `<span style="--c:var(${RARITY_VAR[r]})">${r}</span>`).join("")}<em class="tank-hint">${matchMedia("(hover: hover)").matches ? "Hover" : "Tap"} a fish to see its stats</em></p>
+      <p class="tank-hint">${matchMedia("(hover: hover)").matches ? "Hover over" : "Tap"} a fish to see its stats.</p>
       ${recentCatches.length ? `<h2>Recent catches</h2>
-      <ol class="recent">${recentCatches
+      <ul class="rows">${recentCatches
+        .slice(0, 6)
         .map(
-          (c) => `<li style="--c:var(${RARITY_VAR[c.rarity] || "--common"})"><span class="rf">${esc(c.fish)}</span>
-            <span class="rw">${kg(c.weight)}, ${c.rarity}</span><span class="rp">+${num(c.points)}</span>
-            <time datetime="${new Date(c.caught_at).toISOString()}">${caughtAgo(c.caught_at)}</time></li>`
+          (c) => `<li>${icon(c.fish)}<div><b>${esc(c.fish)}</b> <span class="rar" style="color:var(${RARITY_VAR[c.rarity] || "--common"})">${c.rarity}</span>
+            <span class="sub">${kg(c.weight)}, +${num(c.points)} points, ${caughtAgo(c.caught_at)}</span></div></li>`
         )
-        .join("")}</ol>` : ""}
-      <h2>Species found</h2>
-      <div class="species">${list}</div>
-      <h2>Achievements <small style="font-size:1rem;color:var(--mist)">${have.size}/${GAME.achievements.length}</small></h2>
-      <ul class="achs">${achs}</ul>`;
+        .join("")}</ul>` : ""}
+      <h2>Collection <small>${caught.size} of ${species}</small></h2>
+      ${collection}
+      <h2>Achievements <small>${earned.length} of ${GAME.achievements.length}</small></h2>
+      ${earned.length ? `<ul class="achs">${achList(earned)}</ul>` : `<p class="empty">None yet. The first one comes with your first fish.</p>`}
+      ${locked.length ? `<details class="more"><summary>${locked.length} still to unlock</summary><ul class="achs locked">${achList(locked)}</ul></details>` : ""}`;
     fillTank($("#tank"), tank.filter((t) => t.rarity !== "Junk"), tank.filter((t) => t.rarity === "Junk"), p.chests);
 
     const btn = $("#me-btn");
@@ -498,6 +549,7 @@
     });
     btn.title = isMe ? "Click to forget" : "Remember me in this browser, for a quick My aquarium link";
   }
+
 
   // ---------- limited items + trading post ----------
   const itemName = (kind) => (GAME.items && GAME.items[kind] ? GAME.items[kind].name : kind.replace(/_/g, " "));
@@ -516,8 +568,8 @@
       <ul class="limited">${owned
         .map((it) => {
           const info = GAME.items && GAME.items[it.kind];
-          return `<li><b>${esc(itemName(it.kind))} <span class="serial">#${it.serial}</span></b>
-            <small>${info ? esc(info.perk) : ""}${it.earned_by && it.earned_by !== owner ? `. First earned by <a href="${profileLink(it.earned_by)}">${esc(it.earned_by)}</a>` : ""}</small></li>`;
+          return `<li>${art(itemName(it.kind), 56)}<div><b>${esc(itemName(it.kind))} <span class="serial">#${it.serial}</span></b>
+            <small>${info ? esc(info.perk) : ""}${it.earned_by && it.earned_by !== owner ? `. First owned by <a href="${profileLink(it.earned_by)}">${esc(it.earned_by)}</a>` : ""}</small></div></li>`;
         })
         .join("")}</ul>`;
   }
@@ -543,7 +595,7 @@
           .map(
             (l) => `<li${l.status === "reserved" ? ' class="reserved"' : ""}>
               <span class="lid">#${l.id}</span>
-              <span class="what"><b>${esc(itemName(l.kind))} <span class="serial">#${l.serial}</span></b> from ${who(l.seller)}</span>
+              <span class="what">${art(itemName(l.kind), 40)}<span><b>${esc(itemName(l.kind))} <span class="serial">#${l.serial}</span></b> from ${who(l.seller)}</span></span>
               <span class="price">${esc(priceOf(l.price))}<small>est. value ${esc(l.est_text)}</small></span>
               <span class="how">${l.status === "reserved" ? "Being paid for" : `<code>/pm ${bot} buy ${l.id}</code>`}</span>
             </li>`
@@ -694,13 +746,14 @@
       const h = hash(f.fish);
       const d = document.createElement("div");
       d.className = `fish${h % 2 ? " left" : ""}${f.rarity === "Legendary" ? " legendary" : ""}`;
-      d.style.width = `${SIZE[f.rarity] || 34}px`;
+      const z = window.SPRITES && SPRITES.size(f.fish);
+      d.style.width = z ? `${Math.round(z.w * (SCALE[f.rarity] || 3))}px` : `${SIZE[f.rarity] || 34}px`;
       d.style.top = `${8 + ((h >> 3) % 62)}%`;
       const dur = 14 + ((h >> 5) % 18) + (f.rarity === "Legendary" ? 8 : 0);
       d.style.animationDuration = `${dur}s`;
       d.style.animationDelay = `-${(h >> 7) % dur}s`;
       d.style.setProperty("--rest", `${5 + ((i * 29) % 80)}%`);
-      d.innerHTML = fishSVG(f.fish, f.rarity);
+      d.innerHTML = window.SPRITES && SPRITES.has(f.fish) ? SPRITES.svg(f.fish) : fishSVG(f.fish, f.rarity);
       hoverable(
         d,
         `${f.fish}, ${f.rarity}, caught ${f.caught} times, best ${kg(f.best_weight)}`,
@@ -718,7 +771,8 @@
       const pile = document.createElement("div");
       pile.className = "junkpile";
       pile.style.left = "18px";
-      pile.innerHTML = "<span></span>".repeat(Math.min(6, Math.ceil(junk / 5)));
+      const topJunk = [...junkRows].sort((a, b) => b.caught - a.caught).slice(0, 3);
+      pile.innerHTML = topJunk.map((t) => art(t.fish, Math.round(SPRITES.size(t.fish).w * 2.4))).join("");
       const list = [...junkRows].sort((a, b) => b.caught - a.caught).map((t) => `${esc(t.fish)} ×${num(t.caught)}`).join("<br>");
       hoverable(pile, `Junk pile: ${junk} pieces`, `<b class="tip-name">Junk pile</b><span class="tip-rarity" style="color:var(--junk)">${num(junk)} pieces</span><p class="tip-list">${list}</p>`);
       el.appendChild(pile);
@@ -726,7 +780,7 @@
     if (chests > 0) {
       const chest = document.createElement("div");
       chest.className = "chest";
-      chest.innerHTML = `×${num(chests)}<i></i>`;
+      chest.innerHTML = `${art(isDecember() ? "Present" : "Chest", 48)}<span>×${num(chests)}</span>`;
       hoverable(chest, `${chests} treasure chests opened`, `<b class="tip-name">Treasure chests</b><span class="tip-rarity" style="color:var(--legendary)">${num(chests)} opened</span><p class="tip-list">Each one held coins, Worms or Glow Lures.</p>`);
       el.appendChild(chest);
     }

@@ -183,6 +183,12 @@ window.GAME = {
       "desc": "win 5 fishing contests"
     }
   ],
+  "launch": {
+    "name": "Founder's Rod",
+    "kind": "founders_rod",
+    "price": 15000,
+    "until": 1796083200000
+  },
   "items": {
     "founders_rod": {
       "name": "Founder's Rod",

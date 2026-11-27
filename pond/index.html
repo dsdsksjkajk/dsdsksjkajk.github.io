@@ -10,7 +10,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Flatfish's Pond">
   <meta property="og:title" content="Flatfish's Pond: fishing in FlatMMO">
-  <meta property="og:description" content="A fishing minigame in FlatMMO chat: catch rare fish, fight bosses, win contests and show off your aquarium. Try /pm flatfish -fish">
+  <meta property="og:description" content="A fishing minigame in FlatMMO chat: catch rare fish, fight bosses, win contests and show off your aquarium. Try /pm flatfish fish">
   <meta property="og:url" content="https://dsdsksjkajk.github.io/pond/">
   <meta property="og:image" content="https://dsdsksjkajk.github.io/pond/preview.png">
   <meta property="og:image:width" content="1200">
@@ -31,18 +31,17 @@
       <p class="tagline">Every catch from the <span id="bot-name">flatfish</span> fishing bot in FlatMMO.</p>
       <nav class="nav" aria-label="Pages">
         <a href="#/">Leaderboard</a>
-        <a href="#/records">World records</a>
+        <a href="#/records">Fishdex</a>
         <a href="#/post">Trading post</a>
         <a href="#/" id="me-link" class="me-link" hidden>My aquarium</a>
       </nav>
       <form class="search" id="search" role="search" autocomplete="off">
-        <label for="q">Look up an angler</label>
+        <label for="q" class="sr-only">Find an angler</label>
         <div class="search-row">
-          <input id="q" name="q" type="search" placeholder="Player name" spellcheck="false" aria-describedby="search-hint">
+          <input id="q" name="q" type="search" placeholder="Find an angler by name" spellcheck="false">
           <button type="submit">Find</button>
         </div>
         <ul class="suggest" id="suggest" role="listbox" hidden></ul>
-        <p class="hint" id="search-hint">Type at least 2 letters.</p>
       </form>
       <div class="live" id="live" aria-live="polite"></div>
     </div>
@@ -66,6 +65,7 @@
 
   <script src="config.js"></script>
   <script src="game-data.js"></script>
+  <script src="sprites.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
