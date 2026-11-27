@@ -357,3 +357,33 @@ h2 { font-size: 1.6rem; margin: 2.75rem 0 .9rem; }
 .found b { font-family: var(--pixel); font-weight: 600; margin-right: .4rem; }
 @media (max-width: 760px) { .doors { grid-template-columns: repeat(6, 1fr); } }
 @media (max-width: 480px) { .doors { grid-template-columns: repeat(4, 1fr); } .door b { font-size: 1.15rem; } }
+
+/* ---------- limited items + trading post ---------- */
+.serial { font-family: var(--pixel); color: var(--legendary); }
+.limited { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .75rem; }
+.limited li {
+  padding: .6rem .9rem; border-radius: var(--r-small);
+  background: var(--deeper); border: 2px solid var(--legendary);
+  box-shadow: inset 0 4px 0 var(--holly, #c8463d);
+}
+.limited b { display: block; font: 600 1.1rem var(--pixel); }
+.limited small { color: var(--mist); font-size: .88rem; }
+.lead { max-width: 62ch; }
+.post { list-style: none; margin: 0; padding: 0; max-width: 52rem; }
+.post li {
+  display: grid; grid-template-columns: 3rem 1fr auto auto; gap: .5rem 1rem; align-items: center;
+  padding: .7rem .25rem; border-bottom: 1px solid rgba(169, 201, 204, .2);
+}
+.post .lid { font: 600 1.15rem var(--pixel); color: var(--mist); }
+.post .what b { font-family: var(--pixel); font-weight: 600; }
+.post .what a { font-weight: 700; }
+.post .price { font: 600 1.05rem var(--pixel); text-align: right; }
+.post .price small { display: block; font: .82rem var(--body); color: var(--mist); }
+.post .how { font-size: .9rem; color: var(--mist); }
+.post li.reserved { opacity: .6; }
+.hint-line { color: var(--mist); font-size: .9rem; margin-top: 1.5rem; }
+@media (max-width: 640px) {
+  .post li { grid-template-columns: 2.5rem 1fr; }
+  .post .price { grid-column: 2; text-align: left; }
+  .post .how { grid-column: 2; }
+}

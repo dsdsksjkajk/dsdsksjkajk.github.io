@@ -153,6 +153,11 @@ window.GAME = {
       "desc": "hold 10,000 coins at once"
     },
     {
+      "key": "day_one",
+      "title": "Day One",
+      "desc": "fish during launch weekend"
+    },
+    {
       "key": "festive_angler",
       "title": "Festive Angler",
       "desc": "open 15+ advent doors incl. Christmas Eve"
@@ -178,6 +183,16 @@ window.GAME = {
       "desc": "win 5 fishing contests"
     }
   ],
+  "items": {
+    "founders_rod": {
+      "name": "Founder's Rod",
+      "perk": "10% chance of a double catch, works with any rod"
+    },
+    "candy_cane_rod": {
+      "name": "Candy Cane Rod",
+      "perk": "1.5x treasure chance, works with any rod"
+    }
+  },
   "advent": {
     "doors": {
       "1": "50 coins",

@@ -127,6 +127,13 @@
       DEMO
         ? demo.advent(name)
         : api(`advent?player=eq.${encodeURIComponent(name)}&year=eq.${year}&select=day,gift,opened_at&order=day.asc`).catch(() => []),
+    // Trading post (an older Supabase setup may not have these tables: nothing then)
+    items: (name) =>
+      DEMO ? demo.items(name) : api(`limited_items?owner=eq.${encodeURIComponent(name)}&select=kind,serial,earned_by&order=kind.asc,serial.asc`).catch(() => []),
+    itemCounts: () => (DEMO ? demo.itemCounts() : api("limited_items?select=kind").catch(() => [])),
+    listings: () =>
+      DEMO ? demo.listings() : api("listings?status=in.(open,reserved)&select=*&order=est_value.asc.nullslast,id.asc&limit=50").catch(() => []),
+    sales: () => (DEMO ? demo.sales() : api("sales?select=*&order=id.desc&limit=15").catch(() => [])),
     adventOpened: (year, day) =>
       DEMO ? Promise.resolve(9) : api(`advent?select=player&year=eq.${year}&day=eq.${day}`, { count: true }).catch(() => null),
     search: (q) =>
@@ -392,15 +399,16 @@
     const p = await data.player(name);
     if (!p) return { missing: name };
     const year = adventYear();
-    const [rank, tank, achRows, live, recentCatches, advent] = await Promise.all([
+    const [rank, tank, achRows, live, recentCatches, advent, owned] = await Promise.all([
       data.rank(p.points),
       data.aquarium(p.name),
       data.achievements(p.name),
       data.live().catch(() => null),
       data.catches(p.name).catch(() => []),
       year ? data.advent(p.name, year) : Promise.resolve(null),
+      data.items(p.name),
     ]);
-    return { p, rank, tank, achRows, champion: live && live.champion, recentCatches, advent };
+    return { p, rank, tank, achRows, champion: live && live.champion, recentCatches, advent, owned };
   }
 
   function drawPlayer(d) {
@@ -415,8 +423,10 @@
     const species = Object.values(GAME.fish).flat().length;
     const have = new Set(achRows.map((a) => a.key));
     const isMe = getMe() === p.name;
-    const candy = have.has("festive_angler");
-    const rod = `${candy ? "Candy Cane " : ""}${GAME.rods[p.rod] || "Twig Rod"}`;
+    const candy = have.has("festive_angler"); // earned through the advent calendar
+    const holdsCane = (d.owned || []).some((it) => it.kind === "candy_cane_rod"); // the perk follows the item
+    const holdsFounder = (d.owned || []).some((it) => it.kind === "founders_rod");
+    const rod = `${holdsFounder ? "Founder's " : ""}${holdsCane ? "Candy Cane " : ""}${GAME.rods[p.rod] || "Twig Rod"}`;
 
     const stats = [
       ["Points", num(p.points)],
@@ -460,6 +470,7 @@
       </div>
       <p class="title-line">${p.title ? `the ${esc(p.title)}` : ""}${isChamp ? `${p.title ? ", " : ""}👑 Reigning contest champion` : ""}</p>
       <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+      ${itemsHTML(d.owned || [], p.name)}
       ${d.advent ? calendarHTML(d.advent, candy) : ""}
       <h2>Aquarium</h2>
       <div class="tank" id="tank" role="img" aria-label="${esc(p.display)}'s aquarium with ${caught.size} species"></div>
@@ -486,6 +497,79 @@
       btn.setAttribute("aria-pressed", String(!nowMe));
     });
     btn.title = isMe ? "Click to forget" : "Remember me in this browser, for a quick My aquarium link";
+  }
+
+  // ---------- limited items + trading post ----------
+  const itemName = (kind) => (GAME.items && GAME.items[kind] ? GAME.items[kind].name : kind.replace(/_/g, " "));
+  const prettyItem = (id) => id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const priceOf = (json) => {
+    try {
+      return JSON.parse(json).map((x) => `${num(x.amount)} ${prettyItem(x.item)}`).join(" + ");
+    } catch {
+      return "?";
+    }
+  };
+  function itemsHTML(owned, owner) {
+    if (!owned.length) return "";
+    return `
+      <h2>Limited items</h2>
+      <ul class="limited">${owned
+        .map((it) => {
+          const info = GAME.items && GAME.items[it.kind];
+          return `<li><b>${esc(itemName(it.kind))} <span class="serial">#${it.serial}</span></b>
+            <small>${info ? esc(info.perk) : ""}${it.earned_by && it.earned_by !== owner ? `. First earned by <a href="${profileLink(it.earned_by)}">${esc(it.earned_by)}</a>` : ""}</small></li>`;
+        })
+        .join("")}</ul>`;
+  }
+
+  async function loadPost() {
+    const [listings, sales, counts] = await Promise.all([data.listings(), data.sales(), data.itemCounts()]);
+    const people = [...new Set([...listings.map((l) => l.seller), ...sales.flatMap((x) => [x.seller, x.buyer])])];
+    const named = Object.fromEntries((await data.names(people)).map((p) => [p.name, p.display]));
+    const supply = {};
+    for (const c of counts) supply[c.kind] = (supply[c.kind] || 0) + 1;
+    return { listings, sales, named, supply };
+  }
+
+  function drawPost(d) {
+    document.title = "Trading post: Flatfish's Pond";
+    const bot = esc(CFG.BOT_NAME || "flatfish");
+    const who = (n) => `<a href="${profileLink(n)}">${esc(d.named[n] || n)}</a>`;
+    const supply = Object.entries(d.supply)
+      .map(([k, n]) => `<b>${num(n)}</b> ${esc(itemName(k))}${n === 1 ? "" : "s"}`)
+      .join(", ");
+    const forSale = d.listings.length
+      ? `<ol class="post">${d.listings
+          .map(
+            (l) => `<li${l.status === "reserved" ? ' class="reserved"' : ""}>
+              <span class="lid">#${l.id}</span>
+              <span class="what"><b>${esc(itemName(l.kind))} <span class="serial">#${l.serial}</span></b> from ${who(l.seller)}</span>
+              <span class="price">${esc(priceOf(l.price))}<small>est. value ${esc(l.est_text)}</small></span>
+              <span class="how">${l.status === "reserved" ? "Being paid for" : `<code>/pm ${bot} buy ${l.id}</code>`}</span>
+            </li>`
+          )
+          .join("")}</ol>`
+      : `<p class="empty">Nothing for sale right now. Have a limited item? <code>/pm ${bot} sell [item] for [amount item (+ amount item)]</code></p>`;
+    const sold = d.sales.length
+      ? `<ol class="hall">${d.sales
+          .map(
+            (x) => `<li>${who(x.buyer)}
+              <span>bought ${esc(itemName(x.kind))} #${x.serial} from ${who(x.seller)} for ${esc(priceOf(x.price))} (est. ${esc(x.est_text)})</span>
+              <time datetime="${new Date(x.at).toISOString()}">${new Date(x.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</time></li>`
+          )
+          .join("")}</ol>`
+      : `<p class="empty">No sales yet.</p>`;
+    view.innerHTML = `
+      <h1>Trading post</h1>
+      <p class="lead">Limited flatfish items, sold for real FlatMMO items. ${bot} holds the payment until the item changes hands, so nobody can run off with it.${supply ? ` In the pond so far: ${supply}.` : ""}</p>
+      <dl class="howto">
+        <div><dt><code>/pm ${bot} buy [item or listing #]</code></dt><dd>An item name reserves the cheapest one, a listing number that exact one. You then have 10 minutes to trade ${bot} the price. e.g. <code>buy candy cane rod</code>, <code>buy 4</code></dd></div>
+        <div><dt><code>/pm ${bot} sell [item] for [amount item (+ amount item)]</code></dt><dd>Lists yours. Needs 200 casts. e.g. <code>sell candy cane rod for 40k coins + 20 raw shark</code></dd></div>
+        <div><dt><code>/pm ${bot} collect</code></dt><dd>After a sale, send ${bot} a trade request to collect your payment.</dd></div>
+      </dl>
+      <h2>For sale</h2>${forSale}
+      <h2>Recent sales</h2>${sold}
+      <p class="hint-line">Estimated values come from recent FlatMMO market prices. Items with no recent trades are shown as they are.</p>`;
   }
 
   // ---------- advent calendar ----------
@@ -689,6 +773,7 @@
       return { key: `p:${name}`, load: () => loadPlayer(name), draw: drawPlayer };
     }
     if (h === "#/records") return { key: "records", load: loadRecords, draw: drawRecords };
+    if (h === "#/post") return { key: "post", load: loadPost, draw: drawPost };
     return { key: "home", load: loadHome, draw: drawHome };
   }
   // Only things that change what's drawn (not "bot last checked in at...")
@@ -699,7 +784,7 @@
     const page = currentPage();
     // Highlight the current page in the header
     document.querySelectorAll(".nav a").forEach((a) => a.removeAttribute("aria-current"));
-    const here = page.key === "records" ? '.nav a[href="#/records"]' : page.key === "home" ? '.nav a[href="#/"]:not(#me-link)' : page.key === `p:${getMe()}` ? "#me-link" : null;
+    const here = page.key === "records" ? '.nav a[href="#/records"]' : page.key === "post" ? '.nav a[href="#/post"]' : page.key === "home" ? '.nav a[href="#/"]:not(#me-link)' : page.key === `p:${getMe()}` ? "#me-link" : null;
     if (here && $(here)) $(here).setAttribute("aria-current", "page");
     if (!refresh) view.innerHTML = `<p class="loading">Casting a line…</p>`;
     try {
@@ -774,6 +859,17 @@
         ),
       achievements: (n) => delay(GAME.achievements.filter((a, i) => (hash(n + a.key) % 3) === 0 || i === 0).map((a) => ({ key: a.key }))),
       search: (q) => delay(players.filter((p) => p.name.includes(q.toLowerCase())).slice(0, 8)),
+      items: (n) => delay(n === "winton" ? [{ kind: "candy_cane_rod", serial: 3, earned_by: "bobek" }] : n === "dsdsksjkajk" ? [{ kind: "candy_cane_rod", serial: 1, earned_by: "dsdsksjkajk" }] : []),
+      itemCounts: () => delay(Array.from({ length: 23 }, () => ({ kind: "candy_cane_rod" }))),
+      listings: () => delay([
+        { id: 4, kind: "candy_cane_rod", serial: 12, seller: "zubaduthan", price: '[{"item":"coins","amount":42000}]', est_text: "42,000", status: "open" },
+        { id: 3, kind: "candy_cane_rod", serial: 7, seller: "snygget", price: '[{"item":"coins","amount":40000},{"item":"raw_shark","amount":20}]', est_text: "40,000 + 20 Raw Shark", status: "reserved" },
+        { id: 6, kind: "candy_cane_rod", serial: 2, seller: "pietateip", price: '[{"item":"coins","amount":150000}]', est_text: "150,000", status: "open" },
+      ]),
+      sales: () => delay([
+        { at: Date.now() - 5 * 3600000, kind: "candy_cane_rod", serial: 3, seller: "bobek", buyer: "winton", price: '[{"item":"coins","amount":38000}]', est_text: "38,000" },
+        { at: Date.now() - 30 * 3600000, kind: "candy_cane_rod", serial: 9, seller: "jimbob", buyer: "kfymnik", price: '[{"item":"gold_bar","amount":25}]', est_text: "37,500" },
+      ]),
       advent: (n) => {
         const upTo = adventDoor() || 24;
         const rows = [];
